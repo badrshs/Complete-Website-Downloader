@@ -3,7 +3,7 @@
 ## Complete Website Downloader 💾
 Download the complete source code of any website (including all assets) 🔨.
 
-👉  ![image](https://user-images.githubusercontent.com/26596347/136267623-26aa15a2-0520-4900-93ca-1e50e803d20d.png)
+![image](https://user-images.githubusercontent.com/26596347/136267623-26aa15a2-0520-4900-93ca-1e50e803d20d.png)
 
 ## Description 📒
  Website downloader works with `wget` to download all websites assets to your pc 
