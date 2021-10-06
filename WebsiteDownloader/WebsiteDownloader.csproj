@@ -92,7 +92,6 @@
     </Resource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="11 copy.ico" />
     <Content Include="Icon1.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
