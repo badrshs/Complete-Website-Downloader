@@ -1,4 +1,4 @@
-[![CodeFactor](https://www.codefactor.io/repository/github/badrshs//badrshs/Complete-Website-Downloader/badge)](https://www.codefactor.io/repository/github/badrshs/windows-form-website-downloader)
+[![CodeFactor](https://www.codefactor.io/repository/github/badrshs/windows-form-website-downloader/badge)](https://www.codefactor.io/repository/github/badrshs/windows-form-website-downloader)
 [![GitHub release](https://img.shields.io/github/release/badrshs/Complete-Website-Downloader.svg?logo=github)](https://github.com/badrshs/Complete-Website-Downloader/releases/latest)
 
 
