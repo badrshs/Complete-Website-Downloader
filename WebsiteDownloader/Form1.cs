@@ -80,7 +80,7 @@ namespace WebsiteDownloader
                  }
                  else
                  {
-                     MessageBox.Show($"Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                     MessageBox.Show("Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                  }
              });
         }
