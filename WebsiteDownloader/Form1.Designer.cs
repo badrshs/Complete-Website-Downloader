@@ -108,9 +108,9 @@ namespace WebsiteDownloader
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label3.Location = new System.Drawing.Point(12, 226);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(237, 17);
+            this.label3.Size = new System.Drawing.Size(242, 17);
             this.label3.TabIndex = 6;
-            this.label3.Text = "Powered by: Badr aldeen shek salim";
+            this.label3.Text = "Powered by: Badr Aldeen Shek Salim";
             // 
             // pictureBox1
             // 
