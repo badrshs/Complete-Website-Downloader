@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
@@ -11,38 +11,37 @@ namespace WebsiteDownloader
         public Form1()
         {
             InitializeComponent();
+            Download.Enabled = false;
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void SelectFolderButton_Click(object sender, EventArgs e)
         {
-            using (var fbd = new FolderBrowserDialog())
+            using (var folderDialog = new FolderBrowserDialog())
             {
-                DialogResult result = fbd.ShowDialog();
+                DialogResult result = folderDialog.ShowDialog();
 
-                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(folderDialog.SelectedPath))
                 {
-                    //  string[] files = Directory.GetFiles(fbd.SelectedPath);
-                    //   string[] directories = Directory.GetDirectories(fbd.SelectedPath);
-
-                    outputFolder.Text = fbd.SelectedPath;
+                    outputFolderTextBox.Text = folderDialog.SelectedPath;
                     Download.Enabled = true;
                 }
             }
         }
 
-        private void Download_Click(object sender, EventArgs e)
+        private async void DownloadButton_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrEmpty(urlInput.Text))
+            if (string.IsNullOrWhiteSpace(urlTextBox.Text))
             {
-                MessageBox.Show("You have to provide the url", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Please enter a valid URL", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             try
             {
-                if (!File.Exists("C:\\wget.exe"))
+                string wgetPath = @"C:\wget.exe";
+                if (!File.Exists(wgetPath))
                 {
-                    using (var fileStream = new FileStream(@"C:\wget.exe", FileMode.Create, FileAccess.Write))
+                    using (var fileStream = new FileStream(wgetPath, FileMode.Create, FileAccess.Write))
                     {
                         using (BinaryWriter binaryWriter = new BinaryWriter(fileStream))
                         {
@@ -51,38 +50,42 @@ namespace WebsiteDownloader
                     }
                 }
             }
-            catch (Exception exception)
+            catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show($"Permission required to run this application, try to run it as administrator, ERROR: {exception.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Permission required to run this application, try running it as administrator. ERROR: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
-            }
+             }
 
-            var url = new Uri(urlInput.Text);
-            var outputFolderTextUrlHost = $"{outputFolder.Text}\\{url.Host}";
-            var process = new Process()
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "C:\\wget.exe",
-                    WorkingDirectory = outputFolder.Text,
-                    Arguments = $"-r -p -e robots=off -U mozilla  {url} -P ./{url.Host} ",
-                }
-            };
+        Uri url;
 
-            Task.Run(() =>
-             {
-                 process.Start();
-                 process.WaitForExit();
-
-                 if (Directory.Exists(outputFolderTextUrlHost))
-                 {
-                     Process.Start(outputFolderTextUrlHost);
-                 }
-                 else
-                 {
-                     MessageBox.Show("Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                 }
-             });
+        if (!Uri.TryCreate(urlTextBox.Text, UriKind.Absolute, out url))
+        {
+            MessageBox.Show("Please enter a valid URL", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
         }
+
+        string outputFolderTextUrlHost = $"{outputFolderTextBox.Text}\\{url.Host}";
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = @"C:\wget.exe",
+            WorkingDirectory = outputFolderTextBox.Text,
+            Arguments = $"-r -p -e robots=off -U mozilla {url} -P ./{url.Host}",
+        };
+        var process = new Process { StartInfo = processStartInfo };
+        await Task.Run(() =>
+        {
+            process.Start();
+            process.WaitForExit();
+        });
+
+        if (Directory.Exists(outputFolderTextUrlHost))
+        {
+            Process.Start(outputFolderTextUrlHost);
+        }
+        else
+        {
+            MessageBox.Show("Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+     }
     }
 }
