@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -21,9 +22,6 @@ namespace WebsiteDownloader
 
                 if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
                 {
-                    //  string[] files = Directory.GetFiles(fbd.SelectedPath);
-                    //   string[] directories = Directory.GetDirectories(fbd.SelectedPath);
-
                     outputFolder.Text = fbd.SelectedPath;
                     Download.Enabled = true;
                 }
@@ -34,55 +32,65 @@ namespace WebsiteDownloader
         {
             if (string.IsNullOrEmpty(urlInput.Text))
             {
-                MessageBox.Show("You have to provide the url", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("You have to provide the URL", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
+            string tempPath = Path.Combine(Path.GetTempPath(), "wget.exe");
+
             try
             {
-                if (!File.Exists("C:\\wget.exe"))
+                if (!File.Exists(tempPath))
                 {
-                    using (var fileStream = new FileStream(@"C:\wget.exe", FileMode.Create, FileAccess.Write))
+                    using (Stream resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("WebsiteDownloader.wget.exe"))
                     {
-                        using (BinaryWriter binaryWriter = new BinaryWriter(fileStream))
+                        if (resourceStream == null)
+                            throw new Exception("Cannot find embedded wget.exe resource.");
+
+                        using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
                         {
-                            binaryWriter.Write(Properties.Resources.Runner);
+                            resourceStream.CopyTo(fileStream);
                         }
                     }
                 }
             }
             catch (Exception exception)
             {
-                MessageBox.Show($"Permission required to run this application, try to run it as administrator, ERROR: {exception.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error extracting wget.exe: {exception.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             var url = new Uri(urlInput.Text);
-            var outputFolderTextUrlHost = $"{outputFolder.Text}\\{url.Host}";
+            var outputFolderTextUrlHost = Path.Combine(outputFolder.Text, url.Host);
             var process = new Process()
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "C:\\wget.exe",
+                    FileName = tempPath,
                     WorkingDirectory = outputFolder.Text,
-                    Arguments = $"-r -p -e robots=off -U mozilla  {url} -P ./{url.Host} ",
+                    Arguments = $"-r -p -e robots=off -U mozilla {url} -P ./{url.Host}"
                 }
             };
 
             Task.Run(() =>
-             {
-                 process.Start();
-                 process.WaitForExit();
+            {
+                process.Start();
+                process.WaitForExit();
 
-                 if (Directory.Exists(outputFolderTextUrlHost))
-                 {
-                     Process.Start(outputFolderTextUrlHost);
-                 }
-                 else
-                 {
-                     MessageBox.Show("Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                 }
-             });
+                if (Directory.Exists(outputFolderTextUrlHost))
+                {
+                    Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = outputFolderTextUrlHost,
+                        UseShellExecute = true,
+                        Verb = "open"
+                    });
+                }
+                else
+                {
+                    MessageBox.Show("Something went wrong..", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            });
         }
     }
 }
