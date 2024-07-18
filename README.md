@@ -10,7 +10,7 @@ Download the complete source code of any website (including all assets) 🔨.
 ## Description 📒
  Website downloader works with `wget` to download all websites assets to your pc 
   ## Direct Download
- - [Download](https://github.com/badrshs/Complete-Website-Downloader/releases/download/v1.0/WebsiteDownloader.exe)
+ - [Download](https://github.com/badrshs/Complete-Website-Downloader/releases/download/v1.1/WebsiteDownloader.exe)
  
 # How To Contribute:
  - Open Issue with any bug you noticed.
