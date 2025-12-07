@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -23,22 +24,13 @@ namespace WebsiteDownloader.Models
     /// </summary>
     public class DownloadHistory
     {
-        private const int MaxHistoryItems = 50;
-        private readonly string _historyFilePath;
         private List<DownloadHistoryItem> _items;
 
         public IReadOnlyList<DownloadHistoryItem> Items => _items.AsReadOnly();
 
         public DownloadHistory()
         {
-            string appDataFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "WebsiteDownloader");
-
-            if (!Directory.Exists(appDataFolder))
-                Directory.CreateDirectory(appDataFolder);
-
-            _historyFilePath = Path.Combine(appDataFolder, "history.json");
+            EnsureAppDataFolderExists();
             Load();
         }
 
@@ -49,8 +41,8 @@ namespace WebsiteDownloader.Models
             _items.Insert(0, item);
 
             // Keep only last N items
-            if (_items.Count > MaxHistoryItems)
-                _items.RemoveRange(MaxHistoryItems, _items.Count - MaxHistoryItems);
+            if (_items.Count > AppConstants.MaxHistoryItems)
+                _items.RemoveRange(AppConstants.MaxHistoryItems, _items.Count - AppConstants.MaxHistoryItems);
 
             Save();
         }
@@ -61,22 +53,35 @@ namespace WebsiteDownloader.Models
             Save();
         }
 
+        private void EnsureAppDataFolderExists()
+        {
+            try
+            {
+                if (!Directory.Exists(AppConstants.AppDataFolder))
+                    Directory.CreateDirectory(AppConstants.AppDataFolder);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to create app data folder: {ex.Message}");
+            }
+        }
+
         private void Load()
         {
             _items = new List<DownloadHistoryItem>();
 
             try
             {
-                if (File.Exists(_historyFilePath))
+                if (File.Exists(AppConstants.HistoryFilePath))
                 {
-                    string json = File.ReadAllText(_historyFilePath);
+                    string json = File.ReadAllText(AppConstants.HistoryFilePath);
                     _items = JsonConvert.DeserializeObject<List<DownloadHistoryItem>>(json) 
                              ?? new List<DownloadHistoryItem>();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // If file is corrupted, start fresh
+                Debug.WriteLine($"Failed to load history: {ex.Message}");
                 _items = new List<DownloadHistoryItem>();
             }
         }
@@ -86,11 +91,11 @@ namespace WebsiteDownloader.Models
             try
             {
                 string json = JsonConvert.SerializeObject(_items, Formatting.Indented);
-                File.WriteAllText(_historyFilePath, json);
+                File.WriteAllText(AppConstants.HistoryFilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
-                // Saving history is best-effort
+                Debug.WriteLine($"Failed to save history: {ex.Message}");
             }
         }
     }

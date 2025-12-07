@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -9,14 +10,9 @@ namespace WebsiteDownloader.Models
     /// </summary>
     public class AppSettings
     {
-        private static readonly string SettingsFilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WebsiteDownloader",
-            "settings.json");
-
         // Download settings
         public string DefaultOutputFolder { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        public string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+        public string UserAgent { get; set; } = AppConstants.DefaultUserAgent;
         public bool ConvertLinksForOffline { get; set; } = true;
         public bool AdjustExtensions { get; set; } = true;
         public int MaxDepth { get; set; } = 0;  // 0 = unlimited
@@ -42,15 +38,15 @@ namespace WebsiteDownloader.Models
         {
             try
             {
-                if (File.Exists(SettingsFilePath))
+                if (File.Exists(AppConstants.SettingsFilePath))
                 {
-                    string json = File.ReadAllText(SettingsFilePath);
+                    string json = File.ReadAllText(AppConstants.SettingsFilePath);
                     return JsonConvert.DeserializeObject<AppSettings>(json) ?? new AppSettings();
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Return defaults if file is corrupted
+                Debug.WriteLine($"Failed to load settings: {ex.Message}");
             }
 
             return new AppSettings();
@@ -63,16 +59,15 @@ namespace WebsiteDownloader.Models
         {
             try
             {
-                string directory = Path.GetDirectoryName(SettingsFilePath);
-                if (!Directory.Exists(directory))
-                    Directory.CreateDirectory(directory);
+                if (!Directory.Exists(AppConstants.AppDataFolder))
+                    Directory.CreateDirectory(AppConstants.AppDataFolder);
 
                 string json = JsonConvert.SerializeObject(this, Formatting.Indented);
-                File.WriteAllText(SettingsFilePath, json);
+                File.WriteAllText(AppConstants.SettingsFilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
-                // Settings save is best-effort
+                Debug.WriteLine($"Failed to save settings: {ex.Message}");
             }
         }
     }

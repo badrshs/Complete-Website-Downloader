@@ -37,7 +37,7 @@ namespace WebsiteDownloader
 
         private readonly AppSettings _settings;
         private readonly DownloadHistory _history;
-        private WgetDownloader _downloader;
+        private IWebsiteDownloader _downloader;
         private CancellationTokenSource _cts;
         private int _errorCount;
         private int _warningCount;
@@ -195,18 +195,17 @@ namespace WebsiteDownloader
         {
             _cts = new CancellationTokenSource();
 
-            var options = new DownloadOptions
-            {
-                Url = url,
-                OutputFolder = lblOutputFolder.Text,
-                UserAgent = _settings.UserAgent,
-                ConvertLinks = _settings.ConvertLinksForOffline,
-                AdjustExtensions = _settings.AdjustExtensions,
-                MaxDepth = _settings.MaxDepth,
-                WaitBetweenRequests = _settings.WaitBetweenRequests,
-                RateLimit = _settings.RateLimit,
-                NoClobber = _settings.NoClobber
-            };
+            var options = new DownloadOptions(
+                url: url,
+                outputFolder: lblOutputFolder.Text,
+                userAgent: _settings.UserAgent,
+                convertLinks: _settings.ConvertLinksForOffline,
+                adjustExtensions: _settings.AdjustExtensions,
+                maxDepth: _settings.MaxDepth,
+                waitBetweenRequests: _settings.WaitBetweenRequests,
+                rateLimit: _settings.RateLimit,
+                noClobber: _settings.NoClobber
+            );
 
             SetDownloadingState(true);
             ClearLog();
@@ -302,7 +301,10 @@ namespace WebsiteDownloader
 
         private void AddError(string type, string message)
         {
-            _errorCount++;
+            if (type == "Error")
+                _errorCount++;
+            else
+                _warningCount++;
             
             var item = new ListViewItem(new[]
             {
@@ -320,11 +322,12 @@ namespace WebsiteDownloader
 
         private void UpdateErrorCount()
         {
-            tabPageErrors.Text = $"⚠ Errors ({_errorCount})";
+            int totalIssues = _errorCount + _warningCount;
+            tabPageErrors.Text = $"⚠ Issues ({totalIssues})";
             
-            if (_errorCount > 0)
+            if (totalIssues > 0)
             {
-                statusErrorCount.Text = $"  |  ⚠ {_errorCount} issue(s)";
+                statusErrorCount.Text = $"  |  ⚠ {_errorCount} error(s), {_warningCount} warning(s)";
             }
             else
             {
@@ -347,6 +350,8 @@ namespace WebsiteDownloader
 
         private void HandleDownloadCompleted(DownloadCompletedEventArgs e)
         {
+            int totalIssues = _errorCount + _warningCount;
+            
             LogMessage("---");
             if (e.Cancelled)
             {
@@ -355,9 +360,9 @@ namespace WebsiteDownloader
             else if (e.Success)
             {
                 LogMessage($"✓ Download completed successfully! Duration: {e.Duration:mm\\:ss}");
-                if (_errorCount > 0)
+                if (totalIssues > 0)
                 {
-                    LogMessage($"  ⚠ {_errorCount} issue(s) detected - check the Errors tab for details");
+                    LogMessage($"  ⚠ {_errorCount} error(s), {_warningCount} warning(s) detected - check the Issues tab for details");
                 }
                 if (e.ExitCode != 0)
                 {
@@ -367,9 +372,9 @@ namespace WebsiteDownloader
             else
             {
                 LogMessage($"✗ Download failed. wget exit code: {e.ExitCode}");
-                if (_errorCount > 0)
+                if (totalIssues > 0)
                 {
-                    LogMessage($"  Check the Errors tab for {_errorCount} issue(s)");
+                    LogMessage($"  Check the Issues tab for {_errorCount} error(s), {_warningCount} warning(s)");
                     // Switch to errors tab on failure
                     tabControlOutput.SelectedTab = tabPageErrors;
                 }

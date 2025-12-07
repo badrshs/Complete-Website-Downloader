@@ -1,24 +1,26 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 
 namespace WebsiteDownloader.Helpers
 {
     /// <summary>
-    /// Handles extraction of embedded resources from the assembly
+    /// Handles extraction of embedded resources from the assembly.
     /// </summary>
     public static class ResourceExtractor
     {
         private const string WgetResourceName = "WebsiteDownloader.wget.exe";
 
         /// <summary>
-        /// Extracts wget.exe from embedded resources to a temporary location
+        /// Extracts wget.exe from embedded resources to a temporary location.
         /// </summary>
-        /// <returns>Path to the extracted wget.exe</returns>
+        /// <returns>Path to the extracted wget.exe.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the embedded resource cannot be found.</exception>
         public static string ExtractWget()
         {
             // Use a unique name to avoid conflicts with multiple instances
-            string tempPath = Path.Combine(Path.GetTempPath(), $"WebsiteDownloader_wget_{GetAssemblyVersion()}.exe");
+            string tempPath = Path.Combine(Path.GetTempPath(), $"{AppConstants.WgetFilePrefix}{GetAssemblyVersion()}.exe");
 
             if (File.Exists(tempPath))
             {
@@ -30,7 +32,7 @@ namespace WebsiteDownloader.Helpers
         }
 
         /// <summary>
-        /// Extracts an embedded resource to a file
+        /// Extracts an embedded resource to a file.
         /// </summary>
         private static void ExtractResource(string resourceName, string outputPath)
         {
@@ -58,13 +60,13 @@ namespace WebsiteDownloader.Helpers
         }
 
         /// <summary>
-        /// Cleans up extracted resources from temp folder
+        /// Cleans up extracted resources from temp folder.
         /// </summary>
         public static void Cleanup()
         {
             try
             {
-                string pattern = "WebsiteDownloader_wget_*.exe";
+                string pattern = $"{AppConstants.WgetFilePrefix}*.exe";
                 string tempPath = Path.GetTempPath();
 
                 foreach (string file in Directory.GetFiles(tempPath, pattern))
@@ -73,15 +75,15 @@ namespace WebsiteDownloader.Helpers
                     {
                         File.Delete(file);
                     }
-                    catch (IOException)
+                    catch (IOException ex)
                     {
-                        // File in use, ignore
+                        Debug.WriteLine($"Failed to delete temp file {file}: {ex.Message}");
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Cleanup is best-effort
+                Debug.WriteLine($"Cleanup failed: {ex.Message}");
             }
         }
 
