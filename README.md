@@ -9,7 +9,8 @@
 > **Download any website for offline viewing with a single click.** A powerful, user-friendly Windows desktop application that saves complete websites including HTML, CSS, JavaScript, images, and all assets.
 
 <!-- MAIN SCREENSHOT - Replace with your screenshot -->
-![Website Downloader Screenshot]()
+![Website Downloader Screenshot](https://github.com/user-attachments/assets/35d9638e-6fa7-4e47-bb56-0d63383c162a)
+
 <!-- /MAIN SCREENSHOT -->
 
 ---
@@ -55,13 +56,13 @@
 ## 🖥️ Screenshots
 
 <!-- SCREENSHOT: Main Interface -->
-![Main Interface]()
-
+![Main Interface](https://github.com/user-attachments/assets/fcf8038f-90c9-4ff7-acf4-4eb218056a11)
+ 
 <!-- SCREENSHOT: Settings Panel -->
-![Settings]()
+![Settings](https://github.com/user-attachments/assets/6f24ea78-7b6a-40cb-be9d-7547c72fe48a)
 
 <!-- SCREENSHOT: Download Progress with Errors Tab -->
-![Download Progress]()
+![Download Progress](https://github.com/user-attachments/assets/d6b9f7c0-e432-4edc-81b0-19322fdb4390)
 
 ---
 
@@ -96,22 +97,6 @@
 ### Prerequisites
 - Visual Studio 2019 / 2022
 - .NET Framework 4.7.2 SDK
-
-### Build Steps
-```powershell
-# Clone the repository
-git clone https://github.com/badrshs/Complete-Website-Downloader.git
-cd Complete-Website-Downloader
-
-# Restore NuGet packages
-nuget restore WebsiteDownloader.sln
-
-# Build release
-msbuild WebsiteDownloader.sln /p:Configuration=Release
-```
-
-**Output:** `WebsiteDownloader\bin\Release\WebsiteDownloader.exe`
-
 ---
 
 ## 🏗️ Project Structure
@@ -179,7 +164,7 @@ Open the downloaded folder and double-click the main HTML file (usually <code>in
 
 ## 📋 Changelog
 
-### v2.0.0 (2024)
+### v2.0.1 (2025)
 - ✨ Complete UI redesign with modern dark-themed interface
 - 📊 Added Errors tab for troubleshooting failed downloads
 - 📜 Download history feature with URL reuse
@@ -203,8 +188,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 - Powered by [GNU Wget](https://www.gnu.org/software/wget/) - The non-interactive network downloader
 - Built with .NET Framework and Windows Forms
-- JSON serialization by [Newtonsoft.Json](https://www.newtonsoft.com/json)
-
 ---
 
 ## 📬 Contact
