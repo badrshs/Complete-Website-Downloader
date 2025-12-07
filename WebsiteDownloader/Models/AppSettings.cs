@@ -20,6 +20,32 @@ namespace WebsiteDownloader.Models
         public int WaitBetweenRequests { get; set; } = 0;  // seconds
         public string RateLimit { get; set; } = "";  // e.g., "200k"
         public bool NoClobber { get; set; } = false;
+        
+        // New download settings
+        public bool ContinueDownload { get; set; } = true;  // Resume interrupted downloads (-c)
+        public bool IgnoreSslErrors { get; set; } = false;  // Skip certificate validation
+        public int ConnectionTimeout { get; set; } = 30;    // Connection timeout in seconds
+        public int ReadTimeout { get; set; } = 60;          // Read timeout in seconds
+        public int RetryCount { get; set; } = 3;            // Number of retries on failure
+        
+        // Post-download options
+        public bool ExportToZip { get; set; } = false;      // Zip the downloaded folder
+        public bool DeleteAfterZip { get; set; } = false;   // Delete original folder after zipping
+        
+        // Advanced options
+        public bool EnableMultiThreaded { get; set; } = false;  // Use multiple wget instances
+        public int ThreadCount { get; set; } = 4;               // Number of parallel downloads
+        
+        // Bandwidth scheduler
+        public bool EnableBandwidthScheduler { get; set; } = false;
+        public string PeakHoursRateLimit { get; set; } = "100k";   // Rate during peak hours
+        public string OffPeakRateLimit { get; set; } = "";         // Rate during off-peak (empty = unlimited)
+        public int PeakHoursStart { get; set; } = 9;               // Peak starts at 9 AM
+        public int PeakHoursEnd { get; set; } = 17;                // Peak ends at 5 PM
+        
+        // Auto-update
+        public bool CheckForUpdates { get; set; } = true;
+        public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
 
         // UI settings
         public bool OpenFolderAfterDownload { get; set; } = true;
@@ -127,6 +153,18 @@ namespace WebsiteDownloader.Models
             if (MaxDepth > 100) MaxDepth = 100;
             if (WaitBetweenRequests < 0) WaitBetweenRequests = 0;
             if (WaitBetweenRequests > 300) WaitBetweenRequests = 300;
+            
+            // Validate new settings
+            if (ConnectionTimeout < 5) ConnectionTimeout = 5;
+            if (ConnectionTimeout > 300) ConnectionTimeout = 300;
+            if (ReadTimeout < 10) ReadTimeout = 10;
+            if (ReadTimeout > 600) ReadTimeout = 600;
+            if (RetryCount < 0) RetryCount = 0;
+            if (RetryCount > 20) RetryCount = 20;
+            if (ThreadCount < 1) ThreadCount = 1;
+            if (ThreadCount > 16) ThreadCount = 16;
+            if (PeakHoursStart < 0 || PeakHoursStart > 23) PeakHoursStart = 9;
+            if (PeakHoursEnd < 0 || PeakHoursEnd > 23) PeakHoursEnd = 17;
 
             // Ensure window dimensions are reasonable
             if (WindowWidth < 400) WindowWidth = 600;

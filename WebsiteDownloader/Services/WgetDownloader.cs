@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using WebsiteDownloader.Helpers;
 
 namespace WebsiteDownloader.Services
 {
@@ -15,17 +15,11 @@ namespace WebsiteDownloader.Services
     public class WgetDownloader : IWebsiteDownloader
     {
         private readonly string _wgetPath;
+        private readonly IAppLogger _logger;
         private readonly object _processLock = new object();
         private Process _currentProcess;
         private volatile bool _isDownloading;
         private bool _disposed;
-
-        /// <summary>
-        /// Regex pattern for validating rate limit format (e.g., "200k", "1m", "500").
-        /// </summary>
-        private static readonly Regex RateLimitPattern = new Regex(
-            @"^\d+[kmg]?$", 
-            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <inheritdoc/>
         public event EventHandler<DownloadProgressEventArgs> ProgressChanged;
@@ -40,14 +34,18 @@ namespace WebsiteDownloader.Services
         /// Initializes a new instance of the <see cref="WgetDownloader"/> class.
         /// </summary>
         /// <param name="wgetPath">The path to the wget executable.</param>
+        /// <param name="logger">Optional logger for diagnostic output.</param>
         /// <exception cref="ArgumentNullException">Thrown when wgetPath is null.</exception>
         /// <exception cref="FileNotFoundException">Thrown when wget.exe is not found at the specified path.</exception>
-        public WgetDownloader(string wgetPath)
+        public WgetDownloader(string wgetPath, IAppLogger logger = null)
         {
             _wgetPath = wgetPath ?? throw new ArgumentNullException(nameof(wgetPath));
+            _logger = logger ?? NullLogger.Instance;
 
             if (!File.Exists(_wgetPath))
                 throw new FileNotFoundException("wget.exe not found", _wgetPath);
+
+            _logger.Debug($"WgetDownloader initialized with path: {_wgetPath}");
         }
 
         /// <summary>
@@ -67,10 +65,14 @@ namespace WebsiteDownloader.Services
             _isDownloading = true;
             var startTime = DateTime.Now;
 
+            _logger.Info($"Starting download: {options.Url}");
+
             try
             {
                 var arguments = BuildArguments(options);
                 var outputFolder = Path.Combine(options.OutputFolder, options.Url.Host);
+
+                _logger.Debug($"wget arguments: {arguments}");
 
                 _currentProcess = new Process
                 {
@@ -138,12 +140,26 @@ namespace WebsiteDownloader.Services
                 // Exit code 0 = perfect, but rare for complex sites
                 var success = !wasCancelled && Directory.Exists(outputFolder);
 
+                var duration = DateTime.Now - startTime;
+                if (success)
+                {
+                    _logger.Info($"Download completed successfully: {options.Url} (Duration: {duration:mm\\:ss})");
+                }
+                else if (wasCancelled)
+                {
+                    _logger.Warning($"Download cancelled: {options.Url}");
+                }
+                else
+                {
+                    _logger.Error($"Download failed: {options.Url} (Exit code: {exitCode})");
+                }
+
                 OnDownloadCompleted(new DownloadCompletedEventArgs
                 {
                     Success = success,
                     OutputFolder = outputFolder,
                     Url = options.Url,
-                    Duration = DateTime.Now - startTime,
+                    Duration = duration,
                     Cancelled = wasCancelled || cancellationToken.IsCancellationRequested,
                     ExitCode = exitCode
                 });
@@ -226,7 +242,7 @@ namespace WebsiteDownloader.Services
                 throw new DirectoryNotFoundException($"Output folder does not exist: {options.OutputFolder}");
 
             // Validate rate limit format if provided
-            if (!string.IsNullOrWhiteSpace(options.RateLimit) && !RateLimitPattern.IsMatch(options.RateLimit))
+            if (!string.IsNullOrWhiteSpace(options.RateLimit) && !ValidationPatterns.RateLimitStrict.IsMatch(options.RateLimit))
                 throw new ArgumentException(
                     $"Invalid rate limit format: '{options.RateLimit}'. Expected format: number followed by optional k, m, or g (e.g., '200k', '1m')", 
                     nameof(options));
@@ -240,7 +256,7 @@ namespace WebsiteDownloader.Services
             args.Append("-r ");                    // Recursive
             args.Append("-p ");                    // Page requisites (CSS, JS, images)
             args.Append("-e robots=off ");         // Ignore robots.txt
-            args.Append($"-U \"{options.UserAgent}\" "); // User agent
+            args.Append($"-U \"{SanitizeArgument(options.UserAgent)}\" "); // User agent
 
             // Optional flags based on settings
             if (options.ConvertLinks)
@@ -256,16 +272,63 @@ namespace WebsiteDownloader.Services
                 args.Append($"-w {options.WaitBetweenRequests} ");
 
             if (!string.IsNullOrEmpty(options.RateLimit))
-                args.Append($"--limit-rate={options.RateLimit} ");
+                args.Append($"--limit-rate={SanitizeArgument(options.RateLimit)} ");
 
             if (options.NoClobber)
                 args.Append("-nc ");               // Don't overwrite existing files
 
+            // New options: Continue/Resume
+            if (options.ContinueDownload)
+                args.Append("-c ");                // Continue getting a partially-downloaded file
+
+            // SSL/TLS options
+            if (options.IgnoreSslErrors)
+                args.Append("--no-check-certificate ");  // Don't validate server certificate
+
+            // Timeout settings
+            if (options.ConnectionTimeout > 0)
+                args.Append($"--connect-timeout={options.ConnectionTimeout} ");
+
+            if (options.ReadTimeout > 0)
+                args.Append($"--read-timeout={options.ReadTimeout} ");
+
+            // Retry settings
+            if (options.RetryCount >= 0)
+                args.Append($"--tries={options.RetryCount} ");
+
             // URL and output directory
             args.Append($"\"{options.Url}\" ");
-            args.Append($"-P \"./{options.Url.Host}\"");
+            args.Append($"-P \"./{SanitizeArgument(options.Url.Host)}\"");
 
             return args.ToString();
+        }
+
+        /// <summary>
+        /// Sanitizes a string for safe use in command-line arguments.
+        /// Escapes quotes and removes potentially dangerous characters.
+        /// </summary>
+        /// <param name="value">The value to sanitize.</param>
+        /// <returns>A sanitized string safe for command-line use.</returns>
+        private static string SanitizeArgument(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            // Escape embedded quotes
+            var sanitized = value.Replace("\"", "\\\"");
+            
+            // Remove shell metacharacters that could cause command injection
+            sanitized = sanitized.Replace("|", "")
+                                 .Replace("&", "")
+                                 .Replace(";", "")
+                                 .Replace("`", "")
+                                 .Replace("$", "")
+                                 .Replace("(", "")
+                                 .Replace(")", "")
+                                 .Replace("<", "")
+                                 .Replace(">", "");
+
+            return sanitized;
         }
 
         private void OnProgressChanged(string message)
@@ -366,6 +429,31 @@ namespace WebsiteDownloader.Services
         public bool NoClobber { get; }
 
         /// <summary>
+        /// Gets a value indicating whether to continue/resume interrupted downloads.
+        /// </summary>
+        public bool ContinueDownload { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether to ignore SSL certificate errors.
+        /// </summary>
+        public bool IgnoreSslErrors { get; }
+
+        /// <summary>
+        /// Gets the connection timeout in seconds.
+        /// </summary>
+        public int ConnectionTimeout { get; }
+
+        /// <summary>
+        /// Gets the read timeout in seconds.
+        /// </summary>
+        public int ReadTimeout { get; }
+
+        /// <summary>
+        /// Gets the number of retry attempts on failure.
+        /// </summary>
+        public int RetryCount { get; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="DownloadOptions"/> class.
         /// </summary>
         public DownloadOptions(
@@ -377,7 +465,12 @@ namespace WebsiteDownloader.Services
             int maxDepth = 0,
             int waitBetweenRequests = 0,
             string rateLimit = null,
-            bool noClobber = false)
+            bool noClobber = false,
+            bool continueDownload = true,
+            bool ignoreSslErrors = false,
+            int connectionTimeout = 30,
+            int readTimeout = 60,
+            int retryCount = 3)
         {
             Url = url ?? throw new ArgumentNullException(nameof(url));
             OutputFolder = outputFolder ?? throw new ArgumentNullException(nameof(outputFolder));
@@ -388,6 +481,11 @@ namespace WebsiteDownloader.Services
             WaitBetweenRequests = waitBetweenRequests;
             RateLimit = rateLimit;
             NoClobber = noClobber;
+            ContinueDownload = continueDownload;
+            IgnoreSslErrors = ignoreSslErrors;
+            ConnectionTimeout = connectionTimeout;
+            ReadTimeout = readTimeout;
+            RetryCount = retryCount;
         }
     }
 

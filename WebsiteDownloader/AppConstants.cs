@@ -39,6 +39,28 @@ namespace WebsiteDownloader
         public const int MaxHistoryItems = 50;
 
         /// <summary>
+        /// Maximum number of items in download queue.
+        /// </summary>
+        public const int MaxQueueItems = 100;
+
+        /// <summary>
+        /// The download queue file name.
+        /// </summary>
+        public const string QueueFileName = "queue.json";
+
+        /// <summary>
+        /// GitHub repository for update checks.
+        /// </summary>
+        public const string GitHubOwner = "badrshs";
+        public const string GitHubRepo = "Complete-Website-Downloader";
+        public const string GitHubReleasesApi = "https://api.github.com/repos/{0}/{1}/releases/latest";
+
+        /// <summary>
+        /// Update check interval in days.
+        /// </summary>
+        public const int UpdateCheckIntervalDays = 7;
+
+        /// <summary>
         /// Gets the application data folder path.
         /// </summary>
         public static string AppDataFolder => Path.Combine(

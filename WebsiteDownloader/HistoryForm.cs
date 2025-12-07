@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using WebsiteDownloader.Models;
+using WebsiteDownloader.Resources;
 
 namespace WebsiteDownloader
 {
@@ -26,7 +27,7 @@ namespace WebsiteDownloader
                 {
                     item.DownloadDate.ToString("yyyy-MM-dd HH:mm"),
                     item.Url,
-                    item.Success ? "✓ Success" : "✗ Failed",
+                    item.Success ? Strings.StatusSuccess : Strings.StatusFailed,
                     item.Duration.ToString(@"mm\:ss")
                 });
 
@@ -70,8 +71,8 @@ namespace WebsiteDownloader
         private void btnClearHistory_Click(object sender, EventArgs e)
         {
             var result = MessageBox.Show(
-                "Are you sure you want to clear all download history?",
-                "Clear History",
+                Strings.ConfirmClearHistoryMessage,
+                Strings.ConfirmClearHistoryTitle,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 

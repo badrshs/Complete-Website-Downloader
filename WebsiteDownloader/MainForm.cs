@@ -38,6 +38,7 @@ namespace WebsiteDownloader
 
         private readonly AppSettings _settings;
         private readonly DownloadHistory _history;
+        private readonly IAppLogger _logger;
         private IWebsiteDownloader _downloader;
         private CancellationTokenSource _cts;
         private int _errorCount;
@@ -47,9 +48,14 @@ namespace WebsiteDownloader
         {
             InitializeComponent();
 
+            // Initialize logger
+            _logger = new FileAppLogger();
+
             // Load persisted settings and history
             _settings = AppSettings.Load();
             _history = new DownloadHistory();
+
+            _logger.Info("Application started");
 
             // Initialize downloader with extracted wget
             InitializeDownloader();
@@ -70,7 +76,7 @@ namespace WebsiteDownloader
             try
             {
                 string wgetPath = ResourceExtractor.ExtractWget();
-                _downloader = new WgetDownloader(wgetPath);
+                _downloader = new WgetDownloader(wgetPath, _logger);
                 _downloader.ProgressChanged += Downloader_ProgressChanged;
                 _downloader.DownloadCompleted += Downloader_DownloadCompleted;
             }
@@ -94,11 +100,28 @@ namespace WebsiteDownloader
                 lblOutputFolder.Text = _settings.DefaultOutputFolder;
             }
 
-            // Restore window position if valid
+            // Restore window position if valid and visible on current screen configuration
             if (_settings.WindowX >= 0 && _settings.WindowY >= 0)
             {
-                this.StartPosition = FormStartPosition.Manual;
-                this.Location = new Point(_settings.WindowX, _settings.WindowY);
+                var savedLocation = new Point(_settings.WindowX, _settings.WindowY);
+                
+                // Check if the saved position is visible on any connected screen
+                bool isOnScreen = false;
+                foreach (Screen screen in Screen.AllScreens)
+                {
+                    if (screen.WorkingArea.Contains(savedLocation))
+                    {
+                        isOnScreen = true;
+                        break;
+                    }
+                }
+
+                if (isOnScreen)
+                {
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = savedLocation;
+                }
+                // If not on screen, let Windows use default position
             }
 
             if (_settings.WindowWidth > 0 && _settings.WindowHeight > 0)
@@ -107,11 +130,66 @@ namespace WebsiteDownloader
             }
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        private async void MainForm_Load(object sender, EventArgs e)
         {
             // Populate recent URLs from history
             PopulateRecentUrls();
             UpdateUIState();
+
+            // Check for updates if enabled and enough time has passed
+            if (_settings.CheckForUpdates && UpdateChecker.ShouldCheckForUpdates(_settings.LastUpdateCheck))
+            {
+                await CheckForUpdatesAsync(silent: true);
+            }
+        }
+
+        /// <summary>
+        /// Checks for application updates.
+        /// </summary>
+        /// <param name="silent">If true, only shows dialog when update is available.</param>
+        private async Task CheckForUpdatesAsync(bool silent = false)
+        {
+            try
+            {
+                var updateChecker = new UpdateChecker(_logger);
+                var result = await updateChecker.CheckForUpdatesAsync();
+
+                _settings.LastUpdateCheck = DateTime.Now;
+                _settings.Save();
+
+                if (result.UpdateAvailable)
+                {
+                    var dialogResult = MessageBox.Show(
+                        string.Format(Strings.UpdateAvailableMessage, result.LatestVersion, result.CurrentVersion),
+                        Strings.UpdateAvailableTitle,
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information);
+
+                    if (dialogResult == DialogResult.Yes)
+                    {
+                        UpdateChecker.OpenReleasePage(result.ReleaseUrl);
+                    }
+                }
+                else if (!silent)
+                {
+                    MessageBox.Show(
+                        Strings.UpdateLatestVersion,
+                        Strings.UpdateAvailableTitle,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (!silent)
+                {
+                    MessageBox.Show(
+                        string.Format(Strings.UpdateCheckFailed, ex.Message),
+                        Strings.ErrorTitle,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -198,6 +276,10 @@ namespace WebsiteDownloader
         {
             _cts = new CancellationTokenSource();
 
+            // Get rate limit - use scheduler if enabled
+            var bandwidthScheduler = new BandwidthScheduler(_settings);
+            string rateLimit = bandwidthScheduler.GetCurrentRateLimit();
+
             var options = new DownloadOptions(
                 url: url,
                 outputFolder: lblOutputFolder.Text,
@@ -206,14 +288,26 @@ namespace WebsiteDownloader
                 adjustExtensions: _settings.AdjustExtensions,
                 maxDepth: _settings.MaxDepth,
                 waitBetweenRequests: _settings.WaitBetweenRequests,
-                rateLimit: _settings.RateLimit,
-                noClobber: _settings.NoClobber
+                rateLimit: rateLimit,
+                noClobber: _settings.NoClobber,
+                continueDownload: _settings.ContinueDownload,
+                ignoreSslErrors: _settings.IgnoreSslErrors,
+                connectionTimeout: _settings.ConnectionTimeout,
+                readTimeout: _settings.ReadTimeout,
+                retryCount: _settings.RetryCount
             );
 
             SetDownloadingState(true);
             ClearLog();
             LogMessage(string.Format(Strings.DownloadStarting, url));
             LogMessage(string.Format(Strings.DownloadOutputFolder, lblOutputFolder.Text));
+            
+            // Log scheduler status if enabled
+            if (bandwidthScheduler.IsEnabled)
+            {
+                LogMessage($"Bandwidth scheduler: {bandwidthScheduler.GetStatusDescription()}");
+            }
+            
             LogMessage("---");
 
             try
@@ -351,7 +445,7 @@ namespace WebsiteDownloader
             }
         }
 
-        private void HandleDownloadCompleted(DownloadCompletedEventArgs e)
+        private async void HandleDownloadCompleted(DownloadCompletedEventArgs e)
         {
             int totalIssues = _errorCount + _warningCount;
             
@@ -370,6 +464,12 @@ namespace WebsiteDownloader
                 if (e.ExitCode != 0)
                 {
                     LogMessage(string.Format(Strings.DownloadCompleteExitCode, e.ExitCode));
+                }
+
+                // Export to ZIP if enabled
+                if (_settings.ExportToZip && System.IO.Directory.Exists(e.OutputFolder))
+                {
+                    await ExportToZipAsync(e.OutputFolder);
                 }
             }
             else
@@ -482,6 +582,36 @@ namespace WebsiteDownloader
         private void ShowError(string message)
         {
             MessageBox.Show(message, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// Exports the downloaded folder to a ZIP archive.
+        /// </summary>
+        private async Task ExportToZipAsync(string folderPath)
+        {
+            LogMessage(Strings.ZipCreatingMessage);
+
+            try
+            {
+                var result = await ZipHelper.CreateZipAsync(
+                    folderPath,
+                    deleteSourceAfterZip: _settings.DeleteAfterZip);
+
+                if (result.Success)
+                {
+                    LogMessage(string.Format(Strings.ZipCompleteMessage, 
+                        System.IO.Path.GetFileName(result.ZipFilePath), 
+                        result.FormattedSize));
+                }
+                else
+                {
+                    LogMessage(string.Format(Strings.ZipFailedMessage, result.ErrorMessage));
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage(string.Format(Strings.ZipFailedMessage, ex.Message));
+            }
         }
     }
 }

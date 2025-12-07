@@ -51,6 +51,8 @@
     <Reference Include="System.Deployment" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
   </ItemGroup>
@@ -77,9 +79,17 @@
     <Compile Include="Services\IWebsiteDownloader.cs" />
     <Compile Include="Services\IAppLogger.cs" />
     <Compile Include="Services\FileAppLogger.cs" />
+    <Compile Include="Services\NullLogger.cs" />
     <Compile Include="Services\WgetDownloader.cs" />
+    <Compile Include="Services\SizeEstimator.cs" />
+    <Compile Include="Services\BandwidthScheduler.cs" />
+    <Compile Include="Services\MultiThreadedDownloader.cs" />
+    <Compile Include="Services\UpdateChecker.cs" />
     <Compile Include="Helpers\ResourceExtractor.cs" />
+    <Compile Include="Helpers\ValidationPatterns.cs" />
+    <Compile Include="Helpers\ZipHelper.cs" />
     <Compile Include="Models\DownloadHistory.cs" />
+    <Compile Include="Models\DownloadQueue.cs" />
     <Compile Include="Models\AppSettings.cs" />
     <Compile Include="Resources\Strings.cs" />
     <Compile Include="Program.cs" />
@@ -106,10 +116,21 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="FodyWeavers.xml" />
+    <None Include="FodyWeavers.xsd" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Icon1.ico" />
     <EmbeddedResource Include="wget.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="..\packages\Costura.Fody.5.7.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.5.7.0\build\Costura.Fody.props')" />
+  <Import Project="..\packages\Fody.6.8.0\build\Fody.targets" Condition="Exists('..\packages\Fody.6.8.0\build\Fody.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Costura.Fody.5.7.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.5.7.0\build\Costura.Fody.props'))" />
+    <Error Condition="!Exists('..\packages\Fody.6.8.0\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Fody.6.8.0\build\Fody.targets'))" />
+  </Target>
 </Project>

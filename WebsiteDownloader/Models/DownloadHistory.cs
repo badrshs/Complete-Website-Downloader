@@ -107,12 +107,31 @@ namespace WebsiteDownloader.Models
         {
             try
             {
+                // Use atomic write pattern: write to temp file, then move
+                string tempPath = AppConstants.HistoryFilePath + ".tmp";
                 string json = JsonConvert.SerializeObject(_items, Formatting.Indented);
-                File.WriteAllText(AppConstants.HistoryFilePath, json);
+                
+                File.WriteAllText(tempPath, json);
+                
+                // Atomic replace
+                if (File.Exists(AppConstants.HistoryFilePath))
+                {
+                    File.Delete(AppConstants.HistoryFilePath);
+                }
+                File.Move(tempPath, AppConstants.HistoryFilePath);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to save history: {ex.Message}");
+                
+                // Clean up temp file on failure
+                try
+                {
+                    string tempPath = AppConstants.HistoryFilePath + ".tmp";
+                    if (File.Exists(tempPath))
+                        File.Delete(tempPath);
+                }
+                catch { /* Ignore cleanup errors */ }
             }
         }
     }
