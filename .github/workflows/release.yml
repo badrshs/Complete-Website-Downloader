@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on any tag starting with 'v' (e.g., v1.0, v1.2, v2.0)
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.2.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    env:
+      Solution_Name: WebsiteDownloader.sln
+      Project_Path: WebsiteDownloader\WebsiteDownloader.csproj
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
+
+    - name: Restore NuGet packages
+      run: nuget restore ${{ env.Solution_Name }}
+
+    - name: Build Release
+      run: msbuild ${{ env.Solution_Name }} /p:Configuration=Release /p:Platform="Any CPU"
+
+    - name: Get version from tag
+      id: get_version
+      shell: pwsh
+      run: |
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "${{ github.event.inputs.version }}"
+        } else {
+          $version = "${{ github.ref_name }}".TrimStart('v')
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "TAG_NAME=v$version" >> $env:GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.get_version.outputs.TAG_NAME }}
+        name: v${{ steps.get_version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        files: |
+          WebsiteDownloader/bin/Release/WebsiteDownloader.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: WebsiteDownloader-v${{ steps.get_version.outputs.VERSION }}
+        path: WebsiteDownloader/bin/Release/WebsiteDownloader.exe

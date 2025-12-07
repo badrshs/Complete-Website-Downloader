@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using WebsiteDownloader.Helpers;
 using WebsiteDownloader.Models;
+using WebsiteDownloader.Resources;
 using WebsiteDownloader.Services;
 
 namespace WebsiteDownloader
@@ -57,7 +58,7 @@ namespace WebsiteDownloader
             ApplySettings();
 
             // Set placeholder text
-            SendMessage(txtUrl.Handle, EM_SETCUEBANNER, IntPtr.Zero, "https://example.com");
+            SendMessage(txtUrl.Handle, EM_SETCUEBANNER, IntPtr.Zero, Strings.UrlPlaceholder);
 
             // Wire up form events
             this.FormClosing += MainForm_FormClosing;
@@ -76,11 +77,13 @@ namespace WebsiteDownloader
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Failed to initialize wget: {ex.Message}\n\nThe application cannot function without wget.exe.",
-                    "Initialization Error",
+                    string.Format(Strings.ErrorInitializationMessage, ex.Message),
+                    Strings.ErrorInitializationTitle,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-                Environment.Exit(1);
+                
+                // Graceful exit - allow form to close properly
+                this.Load += (s, e) => this.Close();
             }
         }
 
@@ -117,8 +120,8 @@ namespace WebsiteDownloader
             if (_downloader?.IsDownloading == true)
             {
                 var result = MessageBox.Show(
-                    "A download is in progress. Are you sure you want to exit?",
-                    "Download in Progress",
+                    Strings.ConfirmExitMessage,
+                    Strings.ConfirmExitTitle,
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
 
@@ -146,7 +149,7 @@ namespace WebsiteDownloader
         {
             using (var fbd = new FolderBrowserDialog())
             {
-                fbd.Description = "Select output folder for downloaded website";
+                fbd.Description = Strings.FolderBrowserDescription;
                 fbd.SelectedPath = lblOutputFolder.Text;
 
                 if (fbd.ShowDialog() == DialogResult.OK)
@@ -165,7 +168,7 @@ namespace WebsiteDownloader
             string urlText = txtUrl.Text.Trim();
             if (string.IsNullOrEmpty(urlText))
             {
-                ShowError("Please enter a website URL.");
+                ShowError(Strings.ValidationEnterUrl);
                 txtUrl.Focus();
                 return;
             }
@@ -173,7 +176,7 @@ namespace WebsiteDownloader
             if (!Uri.TryCreate(urlText, UriKind.Absolute, out Uri url) ||
                 (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps))
             {
-                ShowError("Please enter a valid HTTP or HTTPS URL.\n\nExample: https://example.com");
+                ShowError(Strings.ValidationInvalidUrl);
                 txtUrl.Focus();
                 txtUrl.SelectAll();
                 return;
@@ -182,7 +185,7 @@ namespace WebsiteDownloader
             // Validate output folder
             if (string.IsNullOrEmpty(lblOutputFolder.Text))
             {
-                ShowError("Please select an output folder.");
+                ShowError(Strings.ValidationSelectFolder);
                 btnSelectFolder.Focus();
                 return;
             }
@@ -209,8 +212,8 @@ namespace WebsiteDownloader
 
             SetDownloadingState(true);
             ClearLog();
-            LogMessage($"Starting download: {url}");
-            LogMessage($"Output folder: {lblOutputFolder.Text}");
+            LogMessage(string.Format(Strings.DownloadStarting, url));
+            LogMessage(string.Format(Strings.DownloadOutputFolder, lblOutputFolder.Text));
             LogMessage("---");
 
             try
@@ -219,12 +222,12 @@ namespace WebsiteDownloader
             }
             catch (OperationCanceledException)
             {
-                LogMessage("Download cancelled by user.");
+                LogMessage(Strings.DownloadCancelled);
             }
             catch (Exception ex)
             {
                 LogMessage($"Error: {ex.Message}");
-                ShowError($"Download failed: {ex.Message}");
+                ShowError(string.Format(Strings.ErrorDownloadFailed, ex.Message));
             }
             finally
             {
@@ -238,7 +241,7 @@ namespace WebsiteDownloader
         {
             if (_cts != null && !_cts.IsCancellationRequested)
             {
-                LogMessage("Cancelling download...");
+                LogMessage(Strings.DownloadCancelling);
                 _cts.Cancel();
             }
         }
@@ -323,11 +326,11 @@ namespace WebsiteDownloader
         private void UpdateErrorCount()
         {
             int totalIssues = _errorCount + _warningCount;
-            tabPageErrors.Text = $"⚠ Issues ({totalIssues})";
+            tabPageErrors.Text = string.Format(Strings.IssuesTabHeader, totalIssues);
             
             if (totalIssues > 0)
             {
-                statusErrorCount.Text = $"  |  ⚠ {_errorCount} error(s), {_warningCount} warning(s)";
+                statusErrorCount.Text = string.Format(Strings.IssuesStatusFormat, _errorCount, _warningCount);
             }
             else
             {
@@ -355,26 +358,26 @@ namespace WebsiteDownloader
             LogMessage("---");
             if (e.Cancelled)
             {
-                LogMessage("Download cancelled.");
+                LogMessage(Strings.DownloadCancelledShort);
             }
             else if (e.Success)
             {
-                LogMessage($"✓ Download completed successfully! Duration: {e.Duration:mm\\:ss}");
+                LogMessage(string.Format(Strings.DownloadCompleteSuccess, e.Duration.ToString(@"mm\:ss")));
                 if (totalIssues > 0)
                 {
-                    LogMessage($"  ⚠ {_errorCount} error(s), {_warningCount} warning(s) detected - check the Issues tab for details");
+                    LogMessage(string.Format(Strings.DownloadCompleteWithIssues, _errorCount, _warningCount));
                 }
                 if (e.ExitCode != 0)
                 {
-                    LogMessage($"  (wget exit code {e.ExitCode} - some resources may have been unavailable)");
+                    LogMessage(string.Format(Strings.DownloadCompleteExitCode, e.ExitCode));
                 }
             }
             else
             {
-                LogMessage($"✗ Download failed. wget exit code: {e.ExitCode}");
+                LogMessage(string.Format(Strings.DownloadFailed, e.ExitCode));
                 if (totalIssues > 0)
                 {
-                    LogMessage($"  Check the Issues tab for {_errorCount} error(s), {_warningCount} warning(s)");
+                    LogMessage(string.Format(Strings.DownloadFailedCheckIssues, _errorCount, _warningCount));
                     // Switch to errors tab on failure
                     tabControlOutput.SelectedTab = tabPageErrors;
                 }
@@ -413,11 +416,11 @@ namespace WebsiteDownloader
             if (_settings.ShowNotifications && !e.Cancelled)
             {
                 string message = e.Success
-                    ? $"Website downloaded successfully!\n{e.Url.Host}"
-                    : $"Download failed for {e.Url.Host}";
+                    ? string.Format(Strings.NotifyDownloadSuccess, e.Url.Host)
+                    : string.Format(Strings.NotifyDownloadFailed, e.Url.Host);
 
                 MessageBox.Show(message,
-                    e.Success ? "Download Complete" : "Download Failed",
+                    e.Success ? Strings.NotifyDownloadComplete : Strings.NotifyDownloadFailedTitle,
                     MessageBoxButtons.OK,
                     e.Success ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
@@ -435,12 +438,12 @@ namespace WebsiteDownloader
             if (downloading)
             {
                 progressBar.Style = ProgressBarStyle.Marquee;
-                statusLabel.Text = "Downloading...";
+                statusLabel.Text = Strings.StatusDownloading;
             }
             else
             {
                 progressBar.Style = ProgressBarStyle.Blocks;
-                statusLabel.Text = "Ready";
+                statusLabel.Text = Strings.StatusReady;
             }
         }
 
@@ -478,7 +481,7 @@ namespace WebsiteDownloader
 
         private void ShowError(string message)
         {
-            MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(message, Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }

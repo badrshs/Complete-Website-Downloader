@@ -101,16 +101,42 @@ namespace WebsiteDownloader.Services
                 _currentProcess.BeginErrorReadLine();
 
                 // Register cancellation
-                using (cancellationToken.Register(() => CancelDownload()))
+                bool wasCancelled = false;
+                using (cancellationToken.Register(() => 
                 {
-                    await Task.Run(() => _currentProcess.WaitForExit(), cancellationToken);
+                    wasCancelled = true;
+                    CancelDownload();
+                }))
+                {
+                    try
+                    {
+                        await Task.Run(() => _currentProcess.WaitForExit()).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process was killed during cancellation
+                        wasCancelled = true;
+                    }
                 }
 
-                var exitCode = _currentProcess.ExitCode;
+                // Safely get exit code - process may have been killed
+                int exitCode = 0;
+                try
+                {
+                    if (_currentProcess != null && _currentProcess.HasExited)
+                    {
+                        exitCode = _currentProcess.ExitCode;
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process was killed, use default exit code
+                }
+
                 // wget returns various exit codes - only truly "failed" if folder doesn't exist
                 // Exit code 8 = server error (some resources unavailable) - still consider success if folder exists
                 // Exit code 0 = perfect, but rare for complex sites
-                var success = Directory.Exists(outputFolder);
+                var success = !wasCancelled && Directory.Exists(outputFolder);
 
                 OnDownloadCompleted(new DownloadCompletedEventArgs
                 {
@@ -118,7 +144,7 @@ namespace WebsiteDownloader.Services
                     OutputFolder = outputFolder,
                     Url = options.Url,
                     Duration = DateTime.Now - startTime,
-                    Cancelled = cancellationToken.IsCancellationRequested,
+                    Cancelled = wasCancelled || cancellationToken.IsCancellationRequested,
                     ExitCode = exitCode
                 });
             }
@@ -129,26 +155,58 @@ namespace WebsiteDownloader.Services
             }
         }
 
+        /// <summary>
+        /// Timeout in milliseconds for graceful process termination.
+        /// </summary>
+        private const int ProcessTerminationTimeoutMs = 5000;
+
         /// <inheritdoc/>
         public void CancelDownload()
         {
             lock (_processLock)
             {
-                if (_currentProcess != null && !_currentProcess.HasExited)
+                try
                 {
+                    if (_currentProcess == null)
+                        return;
+
+                    if (_currentProcess.HasExited)
+                        return;
+
+                    // Try graceful shutdown first (give it a short time)
+                    bool closedGracefully = false;
                     try
                     {
-                        // Try graceful shutdown first
-                        if (!_currentProcess.CloseMainWindow())
+                        closedGracefully = _currentProcess.CloseMainWindow();
+                        if (closedGracefully)
                         {
-                            _currentProcess.Kill();
+                            // Wait briefly for graceful exit
+                            if (!_currentProcess.WaitForExit(1000))
+                            {
+                                closedGracefully = false;
+                            }
                         }
-                        _currentProcess.WaitForExit(3000);
                     }
                     catch (InvalidOperationException)
                     {
-                        // Process already exited
+                        // Process already exited during graceful shutdown attempt
+                        return;
                     }
+
+                    // Force kill if graceful shutdown failed
+                    if (!closedGracefully && !_currentProcess.HasExited)
+                    {
+                        _currentProcess.Kill();
+                        _currentProcess.WaitForExit(ProcessTerminationTimeoutMs);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process already exited
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    // Access denied or other Win32 error - process may be terminating
                 }
             }
         }

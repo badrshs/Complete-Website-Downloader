@@ -32,7 +32,8 @@ namespace WebsiteDownloader.Helpers
         }
 
         /// <summary>
-        /// Extracts an embedded resource to a file.
+        /// Extracts an embedded resource to a file using atomic write pattern.
+        /// Writes to a temp file first, then moves to final location to prevent partial files.
         /// </summary>
         private static void ExtractResource(string resourceName, string outputPath)
         {
@@ -52,9 +53,32 @@ namespace WebsiteDownloader.Helpers
                     Directory.CreateDirectory(directory);
                 }
 
-                using (var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
+                // Use atomic write pattern: write to temp file, then move
+                string tempPath = outputPath + ".tmp";
+                try
                 {
-                    resourceStream.CopyTo(fileStream);
+                    using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                    {
+                        resourceStream.CopyTo(fileStream);
+                    }
+
+                    // Atomic move (on same volume, this is atomic on Windows)
+                    if (File.Exists(outputPath))
+                    {
+                        File.Delete(outputPath);
+                    }
+                    File.Move(tempPath, outputPath);
+                }
+                catch
+                {
+                    // Clean up temp file on failure
+                    try
+                    {
+                        if (File.Exists(tempPath))
+                            File.Delete(tempPath);
+                    }
+                    catch { /* Ignore cleanup errors */ }
+                    throw;
                 }
             }
         }

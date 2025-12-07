@@ -75,10 +75,13 @@
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Services\IWebsiteDownloader.cs" />
+    <Compile Include="Services\IAppLogger.cs" />
+    <Compile Include="Services\FileAppLogger.cs" />
     <Compile Include="Services\WgetDownloader.cs" />
     <Compile Include="Helpers\ResourceExtractor.cs" />
     <Compile Include="Models\DownloadHistory.cs" />
     <Compile Include="Models\AppSettings.cs" />
+    <Compile Include="Resources\Strings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">

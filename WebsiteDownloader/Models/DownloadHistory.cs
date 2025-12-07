@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace WebsiteDownloader.Models
@@ -20,13 +21,23 @@ namespace WebsiteDownloader.Models
     }
 
     /// <summary>
-    /// Manages download history persistence
+    /// Manages download history persistence with thread-safe operations.
     /// </summary>
     public class DownloadHistory
     {
         private List<DownloadHistoryItem> _items;
+        private readonly object _lockObject = new object();
 
-        public IReadOnlyList<DownloadHistoryItem> Items => _items.AsReadOnly();
+        public IReadOnlyList<DownloadHistoryItem> Items
+        {
+            get
+            {
+                lock (_lockObject)
+                {
+                    return _items.ToArray();
+                }
+            }
+        }
 
         public DownloadHistory()
         {
@@ -38,19 +49,25 @@ namespace WebsiteDownloader.Models
         {
             if (item == null) return;
 
-            _items.Insert(0, item);
+            lock (_lockObject)
+            {
+                _items.Insert(0, item);
 
-            // Keep only last N items
-            if (_items.Count > AppConstants.MaxHistoryItems)
-                _items.RemoveRange(AppConstants.MaxHistoryItems, _items.Count - AppConstants.MaxHistoryItems);
+                // Keep only last N items
+                if (_items.Count > AppConstants.MaxHistoryItems)
+                    _items.RemoveRange(AppConstants.MaxHistoryItems, _items.Count - AppConstants.MaxHistoryItems);
 
-            Save();
+                Save();
+            }
         }
 
         public void Clear()
         {
-            _items.Clear();
-            Save();
+            lock (_lockObject)
+            {
+                _items.Clear();
+                Save();
+            }
         }
 
         private void EnsureAppDataFolderExists()
