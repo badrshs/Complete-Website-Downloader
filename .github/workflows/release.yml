@@ -34,9 +34,6 @@ jobs:
     - name: Restore NuGet packages
       run: nuget restore ${{ env.Solution_Name }}
 
-    - name: Build Release
-      run: msbuild ${{ env.Solution_Name }} /p:Configuration=Release /p:Platform="Any CPU"
-
     - name: Get version from tag
       id: get_version
       shell: pwsh
@@ -48,6 +45,20 @@ jobs:
         }
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "TAG_NAME=v$version" >> $env:GITHUB_OUTPUT
+
+    - name: Update AssemblyInfo version
+      shell: pwsh
+      run: |
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        $assemblyVersion = if ($version.Split('.').Count -lt 4) { "$version.0" } else { $version }
+        $assemblyInfoPath = "WebsiteDownloader\Properties\AssemblyInfo.cs"
+        (Get-Content $assemblyInfoPath) `
+          -replace 'AssemblyVersion\("[^"]*"\)', "AssemblyVersion(`"$assemblyVersion`")" `
+          -replace 'AssemblyFileVersion\("[^"]*"\)', "AssemblyFileVersion(`"$assemblyVersion`")" |
+          Set-Content $assemblyInfoPath
+
+    - name: Build Release
+      run: msbuild ${{ env.Solution_Name }} /p:Configuration=Release /p:Platform="Any CPU"
 
     - name: Create Release
       id: create_release
