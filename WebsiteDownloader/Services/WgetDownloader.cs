@@ -287,7 +287,7 @@ namespace WebsiteDownloader.Services
             // Skip -r (recursive) when using an explicit sitemap input file, because all page
             // URLs are already enumerated; wget only needs to fetch each page and its requisites.
             if (!usingSitemap)
-                args.Append("-r ");                // Recursive
+                args.Append("-r ");                // Recursive (not used when URLs come from sitemap)
             args.Append("-p ");                    // Page requisites (CSS, JS, images)
             args.Append("-e robots=off ");         // Ignore robots.txt
             args.Append($"-U \"{SanitizeArgument(options.UserAgent)}\" "); // User agent
@@ -365,9 +365,6 @@ namespace WebsiteDownloader.Services
                 new Uri(baseUri, "/sitemap_index.xml"),
             };
 
-            _httpClient.DefaultRequestHeaders.Remove("User-Agent");
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", options.UserAgent);
-
             foreach (var candidate in candidates)
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -375,54 +372,69 @@ namespace WebsiteDownloader.Services
 
                 try
                 {
-                    var response = await _httpClient.GetAsync(candidate, cancellationToken).ConfigureAwait(false);
-                    if (!response.IsSuccessStatusCode)
+                    using (var request = new HttpRequestMessage(HttpMethod.Get, candidate))
                     {
-                        _logger.Debug($"Sitemap candidate {candidate} returned {(int)response.StatusCode}");
-                        continue;
-                    }
-
-                    string xml = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    var doc = XDocument.Parse(xml);
-                    string rootName = doc.Root?.Name.LocalName;
-
-                    if (rootName == "sitemapindex")
-                    {
-                        // Sitemap index — fetch each child sitemap listed inside
-                        var childUrls = doc.Root
-                            .Elements()
-                            .Where(e => e.Name.LocalName == "sitemap")
-                            .Select(e => e.Elements()
-                                .FirstOrDefault(c => c.Name.LocalName == "loc")?.Value)
-                            .Where(u => !string.IsNullOrWhiteSpace(u))
-                            .ToList();
-
-                        foreach (var childUrl in childUrls)
+                        request.Headers.Add("User-Agent", options.UserAgent);
+                        var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                        if (!response.IsSuccessStatusCode)
                         {
-                            if (cancellationToken.IsCancellationRequested)
-                                break;
-                            try
+                            _logger.Debug($"Sitemap candidate {candidate} returned {(int)response.StatusCode}");
+                            continue;
+                        }
+
+                        string xml = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var doc = XDocument.Parse(xml);
+                        string rootName = doc.Root?.Name.LocalName;
+
+                        if (rootName == "sitemapindex")
+                        {
+                            // Sitemap index — fetch each child sitemap listed inside
+                            var childUrls = doc.Root
+                                .Elements()
+                                .Where(e => e.Name.LocalName == "sitemap")
+                                .Select(e => e.Elements()
+                                    .FirstOrDefault(c => c.Name.LocalName == "loc")?.Value)
+                                .Where(u => !string.IsNullOrWhiteSpace(u))
+                                .ToList();
+
+                            foreach (var childUrl in childUrls)
                             {
-                                var childResponse = await _httpClient.GetAsync(childUrl, cancellationToken).ConfigureAwait(false);
-                                if (childResponse.IsSuccessStatusCode)
+                                if (cancellationToken.IsCancellationRequested)
+                                    break;
+                                try
                                 {
-                                    string childXml = await childResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                                    ExtractUrlsFromSitemap(childXml, pageUrls, options.Url.Host);
+                                    using (var childRequest = new HttpRequestMessage(HttpMethod.Get, childUrl))
+                                    {
+                                        childRequest.Headers.Add("User-Agent", options.UserAgent);
+                                        var childResponse = await _httpClient.SendAsync(childRequest, cancellationToken).ConfigureAwait(false);
+                                        if (childResponse.IsSuccessStatusCode)
+                                        {
+                                            string childXml = await childResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                                            cancellationToken.ThrowIfCancellationRequested();
+                                            ExtractUrlsFromSitemap(childXml, pageUrls, options.Url.Host, _logger);
+                                        }
+                                        else
+                                        {
+                                            _logger.Debug($"Child sitemap {childUrl} returned {(int)childResponse.StatusCode}");
+                                        }
+                                    }
                                 }
-                                else
+                                catch (OperationCanceledException)
                                 {
-                                    _logger.Debug($"Child sitemap {childUrl} returned {(int)childResponse.StatusCode}");
+                                    throw;
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.Debug($"Failed to fetch child sitemap {childUrl}: {ex.Message}");
+                                catch (Exception ex)
+                                {
+                                    _logger.Debug($"Failed to fetch child sitemap {childUrl}: {ex.Message}");
+                                }
                             }
                         }
-                    }
-                    else if (rootName == "urlset")
-                    {
-                        ExtractUrlsFromSitemap(xml, pageUrls, options.Url.Host);
+                        else if (rootName == "urlset")
+                        {
+                            ExtractUrlsFromSitemap(xml, pageUrls, options.Url.Host, _logger);
+                        }
                     }
 
                     if (pageUrls.Count > 0)
@@ -450,7 +462,7 @@ namespace WebsiteDownloader.Services
         /// Parses a sitemap XML document and adds all <loc> URLs that belong to
         /// <paramref name="host"/> into <paramref name="urls"/>.
         /// </summary>
-        private static void ExtractUrlsFromSitemap(string xml, HashSet<string> urls, string host)
+        private static void ExtractUrlsFromSitemap(string xml, HashSet<string> urls, string host, IAppLogger logger)
         {
             try
             {
@@ -464,7 +476,10 @@ namespace WebsiteDownloader.Services
                 foreach (var url in found)
                     urls.Add(url);
             }
-            catch { /* ignore malformed XML */ }
+            catch (Exception ex)
+            {
+                logger.Debug($"Failed to parse sitemap XML: {ex.Message}");
+            }
         }
 
         /// <summary>
