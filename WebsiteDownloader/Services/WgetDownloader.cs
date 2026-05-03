@@ -21,6 +21,7 @@ namespace WebsiteDownloader.Services
         private readonly string _wgetPath;
         private readonly IAppLogger _logger;
         private readonly object _processLock = new object();
+        private readonly HttpClient _httpClient;
         private Process _currentProcess;
         private volatile bool _isDownloading;
         private bool _disposed;
@@ -45,6 +46,8 @@ namespace WebsiteDownloader.Services
         {
             _wgetPath = wgetPath ?? throw new ArgumentNullException(nameof(wgetPath));
             _logger = logger ?? NullLogger.Instance;
+            _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
             if (!File.Exists(_wgetPath))
                 throw new FileNotFoundException("wget.exe not found", _wgetPath);
@@ -81,7 +84,7 @@ namespace WebsiteDownloader.Services
                     sitemapInputFile = await BuildSitemapInputFileAsync(options, cancellationToken).ConfigureAwait(false);
                     if (sitemapInputFile != null)
                     {
-                        int urlCount = File.ReadAllLines(sitemapInputFile).Length;
+                        int urlCount = File.ReadLines(sitemapInputFile).Count();
                         OnProgressChanged($"Sitemap discovery complete: {urlCount} page(s) found.");
                     }
                     else
@@ -190,7 +193,8 @@ namespace WebsiteDownloader.Services
                 // Clean up temporary sitemap input file
                 if (sitemapInputFile != null)
                 {
-                    try { File.Delete(sitemapInputFile); } catch { }
+                    try { File.Delete(sitemapInputFile); }
+                    catch (IOException ex) { _logger.Debug($"Failed to delete temp sitemap file: {ex.Message}"); }
                 }
                 CleanupProcess();
                 _isDownloading = false;
@@ -297,8 +301,7 @@ namespace WebsiteDownloader.Services
 
             // Depth: always specify so wget never silently falls back to its built-in default
             // of 5 levels.  wget treats -l 0 as "unlimited", matching AppSettings.MaxDepth = 0.
-            if (!usingSitemap)
-                args.Append($"-l {options.MaxDepth} ");
+            args.Append($"-l {options.MaxDepth} ");
 
             if (options.WaitBetweenRequests > 0)
                 args.Append($"-w {options.WaitBetweenRequests} ");
@@ -362,53 +365,76 @@ namespace WebsiteDownloader.Services
                 new Uri(baseUri, "/sitemap_index.xml"),
             };
 
-            using (var httpClient = new HttpClient())
+            _httpClient.DefaultRequestHeaders.Remove("User-Agent");
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", options.UserAgent);
+
+            foreach (var candidate in candidates)
             {
-                httpClient.DefaultRequestHeaders.Add("User-Agent", options.UserAgent);
-                httpClient.Timeout = TimeSpan.FromSeconds(30);
+                if (cancellationToken.IsCancellationRequested)
+                    break;
 
-                foreach (var candidate in candidates)
+                try
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
-
-                    try
+                    var response = await _httpClient.GetAsync(candidate, cancellationToken).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
                     {
-                        string xml = await httpClient.GetStringAsync(candidate).ConfigureAwait(false);
-                        var doc = XDocument.Parse(xml);
-                        string rootName = doc.Root?.Name.LocalName;
+                        _logger.Debug($"Sitemap candidate {candidate} returned {(int)response.StatusCode}");
+                        continue;
+                    }
 
-                        if (rootName == "sitemapindex")
+                    string xml = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var doc = XDocument.Parse(xml);
+                    string rootName = doc.Root?.Name.LocalName;
+
+                    if (rootName == "sitemapindex")
+                    {
+                        // Sitemap index — fetch each child sitemap listed inside
+                        var childUrls = doc.Root
+                            .Elements()
+                            .Where(e => e.Name.LocalName == "sitemap")
+                            .Select(e => e.Elements()
+                                .FirstOrDefault(c => c.Name.LocalName == "loc")?.Value)
+                            .Where(u => !string.IsNullOrWhiteSpace(u))
+                            .ToList();
+
+                        foreach (var childUrl in childUrls)
                         {
-                            // Sitemap index — fetch each child sitemap listed inside
-                            var childUrls = doc.Root
-                                .Elements()
-                                .Where(e => e.Name.LocalName == "sitemap")
-                                .Select(e => e.Elements()
-                                    .FirstOrDefault(c => c.Name.LocalName == "loc")?.Value)
-                                .Where(u => !string.IsNullOrWhiteSpace(u));
-
-                            foreach (var childUrl in childUrls)
+                            if (cancellationToken.IsCancellationRequested)
+                                break;
+                            try
                             {
-                                if (cancellationToken.IsCancellationRequested)
-                                    break;
-                                try
+                                var childResponse = await _httpClient.GetAsync(childUrl, cancellationToken).ConfigureAwait(false);
+                                if (childResponse.IsSuccessStatusCode)
                                 {
-                                    string childXml = await httpClient.GetStringAsync(childUrl).ConfigureAwait(false);
+                                    string childXml = await childResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
                                     ExtractUrlsFromSitemap(childXml, pageUrls, options.Url.Host);
                                 }
-                                catch { /* skip unreachable child sitemaps */ }
+                                else
+                                {
+                                    _logger.Debug($"Child sitemap {childUrl} returned {(int)childResponse.StatusCode}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.Debug($"Failed to fetch child sitemap {childUrl}: {ex.Message}");
                             }
                         }
-                        else if (rootName == "urlset")
-                        {
-                            ExtractUrlsFromSitemap(xml, pageUrls, options.Url.Host);
-                        }
-
-                        if (pageUrls.Count > 0)
-                            break;
                     }
-                    catch { /* try next candidate */ }
+                    else if (rootName == "urlset")
+                    {
+                        ExtractUrlsFromSitemap(xml, pageUrls, options.Url.Host);
+                    }
+
+                    if (pageUrls.Count > 0)
+                        break;
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug($"Sitemap candidate {candidate} failed: {ex.Message}");
                 }
             }
 
@@ -503,6 +529,7 @@ namespace WebsiteDownloader.Services
                 {
                     CancelDownload();
                     CleanupProcess();
+                    _httpClient.Dispose();
                 }
                 _disposed = true;
             }
