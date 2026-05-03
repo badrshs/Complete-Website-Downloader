@@ -1,8 +1,10 @@
 using System;
+using System.Threading;
 using System.Windows.Forms;
 using WebsiteDownloader.Helpers;
 using WebsiteDownloader.Models;
 using WebsiteDownloader.Resources;
+using WebsiteDownloader.Services;
 
 namespace WebsiteDownloader
 {
@@ -56,6 +58,11 @@ namespace WebsiteDownloader
             // Auto-update
             chkCheckUpdates.Checked = _settings.CheckForUpdates;
 
+            // Engine
+            cboEngine.SelectedIndex = (int)_settings.Engine;
+            chkStripAnalytics.Checked = _settings.StripAnalyticsScripts;
+            UpdateEngineStatus();
+
             // UI settings
             chkOpenFolderAfterDownload.Checked = _settings.OpenFolderAfterDownload;
             chkShowNotifications.Checked = _settings.ShowNotifications;
@@ -96,6 +103,10 @@ namespace WebsiteDownloader
 
             // Auto-update
             _settings.CheckForUpdates = chkCheckUpdates.Checked;
+
+            // Engine
+            _settings.Engine = (DownloadEngine)cboEngine.SelectedIndex;
+            _settings.StripAnalyticsScripts = chkStripAnalytics.Checked;
 
             // UI settings
             _settings.OpenFolderAfterDownload = chkOpenFolderAfterDownload.Checked;
@@ -246,7 +257,68 @@ namespace WebsiteDownloader
                 chkDeleteAfterZip.Enabled = defaults.ExportToZip;
                 numThreadCount.Enabled = defaults.EnableMultiThreaded;
                 SetSchedulerControlsEnabled(defaults.EnableBandwidthScheduler);
+                cboEngine.SelectedIndex = (int)defaults.Engine;
+                chkStripAnalytics.Checked = defaults.StripAnalyticsScripts;
             }
+        }
+
+        private void cboEngine_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateEngineStatus();
+        }
+
+        private void UpdateEngineStatus()
+        {
+            if (cboEngine.SelectedIndex == (int)DownloadEngine.Playwright)
+            {
+                var reqs = PlaywrightDownloader.CheckRequirements();
+                lblEngineStatus.Text = string.Format(Strings.SettingsEngineStatus, reqs.GetStatusMessage());
+                btnSetupPlaywright.Visible = reqs.NodeInstalled && !reqs.CrawlerInstalled;
+                
+                if (!reqs.NodeInstalled)
+                    lblEngineStatus.ForeColor = System.Drawing.Color.Red;
+                else if (!reqs.CrawlerInstalled)
+                    lblEngineStatus.ForeColor = System.Drawing.Color.DarkOrange;
+                else
+                    lblEngineStatus.ForeColor = System.Drawing.Color.Green;
+            }
+            else
+            {
+                lblEngineStatus.Text = "";
+                btnSetupPlaywright.Visible = false;
+            }
+        }
+
+        private async void btnSetupPlaywright_Click(object sender, EventArgs e)
+        {
+            btnSetupPlaywright.Enabled = false;
+            btnSetupPlaywright.Text = "Setting up...";
+
+            var downloader = new PlaywrightDownloader();
+            var success = await downloader.SetupAsync(
+                msg => BeginInvoke(new Action(() => lblEngineStatus.Text = msg)),
+                CancellationToken.None);
+
+            if (success)
+            {
+                MessageBox.Show(
+                    Strings.EngineSetupComplete,
+                    Strings.EngineSetupTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    string.Format(Strings.EngineSetupFailed, lblEngineStatus.Text),
+                    Strings.EngineSetupTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+
+            btnSetupPlaywright.Text = Strings.SettingsEngineSetup;
+            btnSetupPlaywright.Enabled = true;
+            UpdateEngineStatus();
         }
     }
 }

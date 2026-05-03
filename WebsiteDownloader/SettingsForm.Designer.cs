@@ -64,6 +64,12 @@ namespace WebsiteDownloader
             this.chkMultiThreaded = new System.Windows.Forms.CheckBox();
             this.lblThreadCount = new System.Windows.Forms.Label();
             this.numThreadCount = new System.Windows.Forms.NumericUpDown();
+            this.grpEngine = new System.Windows.Forms.GroupBox();
+            this.cboEngine = new System.Windows.Forms.ComboBox();
+            this.lblEngine = new System.Windows.Forms.Label();
+            this.lblEngineStatus = new System.Windows.Forms.Label();
+            this.btnSetupPlaywright = new System.Windows.Forms.Button();
+            this.chkStripAnalytics = new System.Windows.Forms.CheckBox();
             this.chkCheckUpdates = new System.Windows.Forms.CheckBox();
             
             // Schedule tab controls
@@ -93,6 +99,7 @@ namespace WebsiteDownloader
             this.tabAdvanced.SuspendLayout();
             this.grpPostDownload.SuspendLayout();
             this.grpMultiThread.SuspendLayout();
+            this.grpEngine.SuspendLayout();
             this.tabSchedule.SuspendLayout();
             this.grpScheduleSettings.SuspendLayout();
             this.tabUI.SuspendLayout();
@@ -119,7 +126,7 @@ namespace WebsiteDownloader
             this.tabControl.Location = new System.Drawing.Point(12, 12);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(460, 400);
+            this.tabControl.Size = new System.Drawing.Size(460, 470);
             this.tabControl.TabIndex = 0;
             
             // 
@@ -310,6 +317,7 @@ namespace WebsiteDownloader
             this.tabAdvanced.Controls.Add(this.numRetryCount);
             this.tabAdvanced.Controls.Add(this.grpPostDownload);
             this.tabAdvanced.Controls.Add(this.grpMultiThread);
+            this.tabAdvanced.Controls.Add(this.grpEngine);
             this.tabAdvanced.Controls.Add(this.chkCheckUpdates);
             this.tabAdvanced.Location = new System.Drawing.Point(4, 22);
             this.tabAdvanced.Name = "tabAdvanced";
@@ -481,6 +489,81 @@ namespace WebsiteDownloader
             this.chkCheckUpdates.TabIndex = 8;
             this.chkCheckUpdates.Text = "Check for updates on startup";
             this.chkCheckUpdates.UseVisualStyleBackColor = true;
+            
+            // 
+            // grpEngine
+            // 
+            this.grpEngine.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.grpEngine.Controls.Add(this.cboEngine);
+            this.grpEngine.Controls.Add(this.lblEngine);
+            this.grpEngine.Controls.Add(this.lblEngineStatus);
+            this.grpEngine.Controls.Add(this.btnSetupPlaywright);
+            this.grpEngine.Controls.Add(this.chkStripAnalytics);
+            this.grpEngine.Location = new System.Drawing.Point(18, 330);
+            this.grpEngine.Name = "grpEngine";
+            this.grpEngine.Size = new System.Drawing.Size(416, 125);
+            this.grpEngine.TabIndex = 9;
+            this.grpEngine.TabStop = false;
+            this.grpEngine.Text = "Download Engine";
+            
+            // 
+            // lblEngine
+            // 
+            this.lblEngine.AutoSize = true;
+            this.lblEngine.Location = new System.Drawing.Point(15, 28);
+            this.lblEngine.Name = "lblEngine";
+            this.lblEngine.Size = new System.Drawing.Size(45, 13);
+            this.lblEngine.TabIndex = 0;
+            this.lblEngine.Text = "Engine:";
+            
+            // 
+            // cboEngine
+            // 
+            this.cboEngine.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboEngine.FormattingEnabled = true;
+            this.cboEngine.Items.AddRange(new object[] {
+                "wget (fast, no JavaScript)",
+                "Playwright (full browser, handles JS sites)"});
+            this.cboEngine.Location = new System.Drawing.Point(70, 25);
+            this.cboEngine.Name = "cboEngine";
+            this.cboEngine.Size = new System.Drawing.Size(270, 21);
+            this.cboEngine.TabIndex = 1;
+            this.cboEngine.SelectedIndexChanged += new System.EventHandler(this.cboEngine_SelectedIndexChanged);
+            
+            // 
+            // lblEngineStatus
+            // 
+            this.lblEngineStatus.AutoSize = true;
+            this.lblEngineStatus.ForeColor = System.Drawing.SystemColors.GrayText;
+            this.lblEngineStatus.Location = new System.Drawing.Point(15, 55);
+            this.lblEngineStatus.Name = "lblEngineStatus";
+            this.lblEngineStatus.Size = new System.Drawing.Size(200, 13);
+            this.lblEngineStatus.TabIndex = 2;
+            this.lblEngineStatus.Text = "";
+            
+            // 
+            // btnSetupPlaywright
+            // 
+            this.btnSetupPlaywright.Location = new System.Drawing.Point(15, 72);
+            this.btnSetupPlaywright.Name = "btnSetupPlaywright";
+            this.btnSetupPlaywright.Size = new System.Drawing.Size(130, 23);
+            this.btnSetupPlaywright.TabIndex = 3;
+            this.btnSetupPlaywright.Text = "Setup Playwright";
+            this.btnSetupPlaywright.UseVisualStyleBackColor = true;
+            this.btnSetupPlaywright.Visible = false;
+            this.btnSetupPlaywright.Click += new System.EventHandler(this.btnSetupPlaywright_Click);
+            
+            // 
+            // chkStripAnalytics
+            // 
+            this.chkStripAnalytics.AutoSize = true;
+            this.chkStripAnalytics.Location = new System.Drawing.Point(18, 100);
+            this.chkStripAnalytics.Name = "chkStripAnalytics";
+            this.chkStripAnalytics.Size = new System.Drawing.Size(300, 17);
+            this.chkStripAnalytics.TabIndex = 4;
+            this.chkStripAnalytics.Text = "Strip analytics/tracking scripts for offline viewing";
+            this.chkStripAnalytics.UseVisualStyleBackColor = true;
             
             // 
             // tabSchedule
@@ -662,7 +745,7 @@ namespace WebsiteDownloader
             // btnSave
             // 
             this.btnSave.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnSave.Location = new System.Drawing.Point(316, 428);
+            this.btnSave.Location = new System.Drawing.Point(316, 500);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(75, 28);
             this.btnSave.TabIndex = 1;
@@ -675,7 +758,7 @@ namespace WebsiteDownloader
             // 
             this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(397, 428);
+            this.btnCancel.Location = new System.Drawing.Point(397, 500);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(75, 28);
             this.btnCancel.TabIndex = 2;
@@ -687,7 +770,7 @@ namespace WebsiteDownloader
             // btnResetDefaults
             // 
             this.btnResetDefaults.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.btnResetDefaults.Location = new System.Drawing.Point(12, 428);
+            this.btnResetDefaults.Location = new System.Drawing.Point(12, 500);
             this.btnResetDefaults.Name = "btnResetDefaults";
             this.btnResetDefaults.Size = new System.Drawing.Size(100, 28);
             this.btnResetDefaults.TabIndex = 3;
@@ -702,7 +785,7 @@ namespace WebsiteDownloader
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(484, 471);
+            this.ClientSize = new System.Drawing.Size(484, 545);
             this.Controls.Add(this.btnResetDefaults);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
@@ -723,6 +806,8 @@ namespace WebsiteDownloader
             this.grpPostDownload.PerformLayout();
             this.grpMultiThread.ResumeLayout(false);
             this.grpMultiThread.PerformLayout();
+            this.grpEngine.ResumeLayout(false);
+            this.grpEngine.PerformLayout();
             this.tabSchedule.ResumeLayout(false);
             this.tabSchedule.PerformLayout();
             this.grpScheduleSettings.ResumeLayout(false);
@@ -778,6 +863,12 @@ namespace WebsiteDownloader
         private System.Windows.Forms.CheckBox chkMultiThreaded;
         private System.Windows.Forms.Label lblThreadCount;
         private System.Windows.Forms.NumericUpDown numThreadCount;
+        private System.Windows.Forms.GroupBox grpEngine;
+        private System.Windows.Forms.ComboBox cboEngine;
+        private System.Windows.Forms.Label lblEngine;
+        private System.Windows.Forms.Label lblEngineStatus;
+        private System.Windows.Forms.Button btnSetupPlaywright;
+        private System.Windows.Forms.CheckBox chkStripAnalytics;
         private System.Windows.Forms.CheckBox chkCheckUpdates;
         
         // Schedule tab controls

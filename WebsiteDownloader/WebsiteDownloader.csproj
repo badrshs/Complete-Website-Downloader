@@ -80,7 +80,9 @@
     <Compile Include="Services\IAppLogger.cs" />
     <Compile Include="Services\FileAppLogger.cs" />
     <Compile Include="Services\NullLogger.cs" />
+    <Compile Include="Services\DownloadEngine.cs" />
     <Compile Include="Services\WgetDownloader.cs" />
+    <Compile Include="Services\PlaywrightDownloader.cs" />
     <Compile Include="Services\SizeEstimator.cs" />
     <Compile Include="Services\BandwidthScheduler.cs" />
     <Compile Include="Services\MultiThreadedDownloader.cs" />

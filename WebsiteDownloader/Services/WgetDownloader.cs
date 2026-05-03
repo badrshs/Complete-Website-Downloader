@@ -267,6 +267,8 @@ namespace WebsiteDownloader.Services
 
             if (options.MaxDepth > 0)
                 args.Append($"-l {options.MaxDepth} ");
+            else
+                args.Append("-l 0 ");              // Explicitly set infinite depth (wget defaults to 5)
 
             if (options.WaitBetweenRequests > 0)
                 args.Append($"-w {options.WaitBetweenRequests} ");

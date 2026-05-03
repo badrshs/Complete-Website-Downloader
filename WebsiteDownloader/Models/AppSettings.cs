@@ -36,6 +36,12 @@ namespace WebsiteDownloader.Models
         public bool EnableMultiThreaded { get; set; } = false;  // Use multiple wget instances
         public int ThreadCount { get; set; } = 4;               // Number of parallel downloads
         
+        // Download engine
+        public Services.DownloadEngine Engine { get; set; } = Services.DownloadEngine.Wget;
+        
+        // Playwright-specific settings
+        public bool StripAnalyticsScripts { get; set; } = true;  // Remove tracking/analytics scripts for offline viewing
+        
         // Bandwidth scheduler
         public bool EnableBandwidthScheduler { get; set; } = false;
         public string PeakHoursRateLimit { get; set; } = "100k";   // Rate during peak hours

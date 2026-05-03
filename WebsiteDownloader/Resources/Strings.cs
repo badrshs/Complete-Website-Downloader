@@ -137,5 +137,16 @@ namespace WebsiteDownloader.Resources
         public const string ValidationTimeoutInvalid = "Timeout must be between {0} and {1} seconds.";
         public const string ValidationRetryInvalid = "Retry count must be between 0 and 20.";
         public const string ValidationThreadCountInvalid = "Thread count must be between 1 and 16.";
+        
+        // Download Engine
+        public const string SettingsEngineLabel = "Download Engine:";
+        public const string SettingsEngineWget = "wget (fast, no JavaScript)";
+        public const string SettingsEnginePlaywright = "Playwright (full browser, handles JS sites)";
+        public const string SettingsEngineSetup = "Setup Playwright";
+        public const string SettingsEngineStatus = "Status: {0}";
+        public const string EngineSetupTitle = "Playwright Engine Setup";
+        public const string EngineSetupComplete = "Playwright engine setup complete! You can now download JavaScript-rendered websites.";
+        public const string EngineSetupFailed = "Setup failed: {0}";
+        public const string EngineNodeRequired = "Node.js is required for the Playwright engine.\n\nPlease install Node.js from https://nodejs.org/ and restart the application.";
     }
 }

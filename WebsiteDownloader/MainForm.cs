@@ -75,8 +75,18 @@ namespace WebsiteDownloader
         {
             try
             {
-                string wgetPath = ResourceExtractor.ExtractWget();
-                _downloader = new WgetDownloader(wgetPath, _logger);
+                if (_settings.Engine == Services.DownloadEngine.Playwright)
+                {
+                    _downloader = new PlaywrightDownloader(_logger)
+                    {
+                        StripAnalyticsScripts = _settings.StripAnalyticsScripts
+                    };
+                }
+                else
+                {
+                    string wgetPath = ResourceExtractor.ExtractWget();
+                    _downloader = new WgetDownloader(wgetPath, _logger);
+                }
                 _downloader.ProgressChanged += Downloader_ProgressChanged;
                 _downloader.DownloadCompleted += Downloader_DownloadCompleted;
             }
@@ -342,11 +352,19 @@ namespace WebsiteDownloader
 
         private void btnSettings_Click(object sender, EventArgs e)
         {
+            var previousEngine = _settings.Engine;
             using (var settingsForm = new SettingsForm(_settings))
             {
                 if (settingsForm.ShowDialog(this) == DialogResult.OK)
                 {
                     _settings.Save();
+                    
+                    // Re-initialize downloader if engine changed
+                    if (_settings.Engine != previousEngine)
+                    {
+                        _downloader?.Dispose();
+                        InitializeDownloader();
+                    }
                 }
             }
         }
