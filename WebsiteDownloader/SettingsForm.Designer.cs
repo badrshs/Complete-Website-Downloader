@@ -139,6 +139,8 @@ namespace WebsiteDownloader
             this.tabDownload.Controls.Add(this.chkNoClobber);
             this.tabDownload.Controls.Add(this.chkContinueDownload);
             this.tabDownload.Controls.Add(this.chkIgnoreSsl);
+            this.tabDownload.Controls.Add(this.chkRestrictToPath);
+            this.tabDownload.Controls.Add(this.chkUseSitemap);
             this.tabDownload.Location = new System.Drawing.Point(4, 22);
             this.tabDownload.Name = "tabDownload";
             this.tabDownload.Padding = new System.Windows.Forms.Padding(3);
@@ -300,7 +302,28 @@ namespace WebsiteDownloader
             this.chkIgnoreSsl.UseVisualStyleBackColor = true;
             
             // 
-            // tabAdvanced
+            // chkRestrictToPath
+            // 
+            this.chkRestrictToPath.AutoSize = true;
+            this.chkRestrictToPath.Checked = true;
+            this.chkRestrictToPath.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkRestrictToPath.Location = new System.Drawing.Point(18, 300);
+            this.chkRestrictToPath.Name = "chkRestrictToPath";
+            this.chkRestrictToPath.Size = new System.Drawing.Size(290, 17);
+            this.chkRestrictToPath.TabIndex = 14;
+            this.chkRestrictToPath.Text = "Restrict download to starting path (--no-parent)";
+            this.chkRestrictToPath.UseVisualStyleBackColor = true;
+            
+            // 
+            // chkUseSitemap
+            // 
+            this.chkUseSitemap.AutoSize = true;
+            this.chkUseSitemap.Location = new System.Drawing.Point(18, 325);
+            this.chkUseSitemap.Name = "chkUseSitemap";
+            this.chkUseSitemap.Size = new System.Drawing.Size(350, 17);
+            this.chkUseSitemap.TabIndex = 15;
+            this.chkUseSitemap.Text = "Use sitemap.xml for page discovery (recommended for JS-heavy sites)";
+            this.chkUseSitemap.UseVisualStyleBackColor = true;
             // 
             this.tabAdvanced.Controls.Add(this.lblConnectionTimeout);
             this.tabAdvanced.Controls.Add(this.numConnectionTimeout);
@@ -763,6 +786,8 @@ namespace WebsiteDownloader
         private System.Windows.Forms.CheckBox chkNoClobber;
         private System.Windows.Forms.CheckBox chkContinueDownload;
         private System.Windows.Forms.CheckBox chkIgnoreSsl;
+        private System.Windows.Forms.CheckBox chkRestrictToPath;
+        private System.Windows.Forms.CheckBox chkUseSitemap;
         
         // Advanced tab controls
         private System.Windows.Forms.Label lblConnectionTimeout;

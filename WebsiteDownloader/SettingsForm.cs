@@ -34,6 +34,8 @@ namespace WebsiteDownloader
             numConnectionTimeout.Value = _settings.ConnectionTimeout;
             numReadTimeout.Value = _settings.ReadTimeout;
             numRetryCount.Value = _settings.RetryCount;
+            chkRestrictToPath.Checked = _settings.RestrictToPath;
+            chkUseSitemap.Checked = _settings.UseSitemap;
 
             // Post-download options
             chkExportZip.Checked = _settings.ExportToZip;
@@ -78,6 +80,8 @@ namespace WebsiteDownloader
             _settings.ConnectionTimeout = (int)numConnectionTimeout.Value;
             _settings.ReadTimeout = (int)numReadTimeout.Value;
             _settings.RetryCount = (int)numRetryCount.Value;
+            _settings.RestrictToPath = chkRestrictToPath.Checked;
+            _settings.UseSitemap = chkUseSitemap.Checked;
 
             // Post-download options
             _settings.ExportToZip = chkExportZip.Checked;
@@ -219,6 +223,8 @@ namespace WebsiteDownloader
                 numConnectionTimeout.Value = defaults.ConnectionTimeout;
                 numReadTimeout.Value = defaults.ReadTimeout;
                 numRetryCount.Value = defaults.RetryCount;
+                chkRestrictToPath.Checked = defaults.RestrictToPath;
+                chkUseSitemap.Checked = defaults.UseSitemap;
                 
                 // Post-download options
                 chkExportZip.Checked = defaults.ExportToZip;

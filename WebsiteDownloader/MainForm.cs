@@ -294,7 +294,9 @@ namespace WebsiteDownloader
                 ignoreSslErrors: _settings.IgnoreSslErrors,
                 connectionTimeout: _settings.ConnectionTimeout,
                 readTimeout: _settings.ReadTimeout,
-                retryCount: _settings.RetryCount
+                retryCount: _settings.RetryCount,
+                restrictToPath: _settings.RestrictToPath,
+                useSitemap: _settings.UseSitemap
             );
 
             SetDownloadingState(true);

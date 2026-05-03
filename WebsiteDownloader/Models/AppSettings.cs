@@ -27,6 +27,8 @@ namespace WebsiteDownloader.Models
         public int ConnectionTimeout { get; set; } = 30;    // Connection timeout in seconds
         public int ReadTimeout { get; set; } = 60;          // Read timeout in seconds
         public int RetryCount { get; set; } = 3;            // Number of retries on failure
+        public bool RestrictToPath { get; set; } = true;    // Pass --no-parent to wget
+        public bool UseSitemap { get; set; } = false;       // Use sitemap.xml for page discovery
         
         // Post-download options
         public bool ExportToZip { get; set; } = false;      // Zip the downloaded folder

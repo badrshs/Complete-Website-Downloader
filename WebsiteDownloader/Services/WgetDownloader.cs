@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using WebsiteDownloader.Helpers;
 
 namespace WebsiteDownloader.Services
@@ -64,12 +68,29 @@ namespace WebsiteDownloader.Services
 
             _isDownloading = true;
             var startTime = DateTime.Now;
+            string sitemapInputFile = null;
 
             _logger.Info($"Starting download: {options.Url}");
 
             try
             {
-                var arguments = BuildArguments(options);
+                // Pre-process sitemap if enabled - discover all page URLs before running wget
+                if (options.UseSitemap)
+                {
+                    OnProgressChanged("Fetching sitemap for URL discovery...");
+                    sitemapInputFile = await BuildSitemapInputFileAsync(options, cancellationToken).ConfigureAwait(false);
+                    if (sitemapInputFile != null)
+                    {
+                        int urlCount = File.ReadAllLines(sitemapInputFile).Length;
+                        OnProgressChanged($"Sitemap discovery complete: {urlCount} page(s) found.");
+                    }
+                    else
+                    {
+                        OnProgressChanged("No sitemap found, falling back to recursive download.");
+                    }
+                }
+
+                var arguments = BuildArguments(options, sitemapInputFile);
                 var outputFolder = Path.Combine(options.OutputFolder, options.Url.Host);
 
                 _logger.Debug($"wget arguments: {arguments}");
@@ -166,6 +187,11 @@ namespace WebsiteDownloader.Services
             }
             finally
             {
+                // Clean up temporary sitemap input file
+                if (sitemapInputFile != null)
+                {
+                    try { File.Delete(sitemapInputFile); } catch { }
+                }
                 CleanupProcess();
                 _isDownloading = false;
             }
@@ -248,12 +274,16 @@ namespace WebsiteDownloader.Services
                     nameof(options));
         }
 
-        private string BuildArguments(DownloadOptions options)
+        private string BuildArguments(DownloadOptions options, string sitemapInputFile = null)
         {
             var args = new StringBuilder();
+            bool usingSitemap = !string.IsNullOrEmpty(sitemapInputFile);
 
-            // Core recursive download flags
-            args.Append("-r ");                    // Recursive
+            // Core download flags
+            // Skip -r (recursive) when using an explicit sitemap input file, because all page
+            // URLs are already enumerated; wget only needs to fetch each page and its requisites.
+            if (!usingSitemap)
+                args.Append("-r ");                // Recursive
             args.Append("-p ");                    // Page requisites (CSS, JS, images)
             args.Append("-e robots=off ");         // Ignore robots.txt
             args.Append($"-U \"{SanitizeArgument(options.UserAgent)}\" "); // User agent
@@ -265,7 +295,9 @@ namespace WebsiteDownloader.Services
             if (options.AdjustExtensions)
                 args.Append("-E ");                // Add .html extensions
 
-            if (options.MaxDepth > 0)
+            // Depth: always specify so wget never silently falls back to its built-in default
+            // of 5 levels.  wget treats -l 0 as "unlimited", matching AppSettings.MaxDepth = 0.
+            if (!usingSitemap)
                 args.Append($"-l {options.MaxDepth} ");
 
             if (options.WaitBetweenRequests > 0)
@@ -296,11 +328,117 @@ namespace WebsiteDownloader.Services
             if (options.RetryCount >= 0)
                 args.Append($"--tries={options.RetryCount} ");
 
-            // URL and output directory
-            args.Append($"\"{options.Url}\" ");
+            // Restrict crawling to the starting host (prevents following off-site links)
+            args.Append($"--domains={SanitizeArgument(options.Url.Host)} ");
+
+            // Restrict to starting path — don't follow links that ascend the directory tree
+            if (options.RestrictToPath)
+                args.Append("--no-parent ");
+
+            // URL / input-file and output directory
+            if (usingSitemap)
+                args.Append($"--input-file=\"{SanitizeArgument(sitemapInputFile)}\" ");
+            else
+                args.Append($"\"{options.Url}\" ");
             args.Append($"-P \"./{SanitizeArgument(options.Url.Host)}\"");
 
             return args.ToString();
+        }
+
+        /// <summary>
+        /// Fetches and parses the site's sitemap(s), writes all discovered page URLs to a
+        /// temporary file, and returns the file path.  Returns null when no usable sitemap
+        /// is found so the caller can fall back to normal recursive mode.
+        /// </summary>
+        private async Task<string> BuildSitemapInputFileAsync(DownloadOptions options, CancellationToken cancellationToken)
+        {
+            var pageUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var baseUri = new Uri($"{options.Url.Scheme}://{options.Url.Host}");
+
+            var candidates = new[]
+            {
+                new Uri(baseUri, "/sitemap.xml"),
+                new Uri(baseUri, "/sitemap-index.xml"),
+                new Uri(baseUri, "/sitemap_index.xml"),
+            };
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.DefaultRequestHeaders.Add("User-Agent", options.UserAgent);
+                httpClient.Timeout = TimeSpan.FromSeconds(30);
+
+                foreach (var candidate in candidates)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
+
+                    try
+                    {
+                        string xml = await httpClient.GetStringAsync(candidate).ConfigureAwait(false);
+                        var doc = XDocument.Parse(xml);
+                        string rootName = doc.Root?.Name.LocalName;
+
+                        if (rootName == "sitemapindex")
+                        {
+                            // Sitemap index — fetch each child sitemap listed inside
+                            var childUrls = doc.Root
+                                .Elements()
+                                .Where(e => e.Name.LocalName == "sitemap")
+                                .Select(e => e.Elements()
+                                    .FirstOrDefault(c => c.Name.LocalName == "loc")?.Value)
+                                .Where(u => !string.IsNullOrWhiteSpace(u));
+
+                            foreach (var childUrl in childUrls)
+                            {
+                                if (cancellationToken.IsCancellationRequested)
+                                    break;
+                                try
+                                {
+                                    string childXml = await httpClient.GetStringAsync(childUrl).ConfigureAwait(false);
+                                    ExtractUrlsFromSitemap(childXml, pageUrls, options.Url.Host);
+                                }
+                                catch { /* skip unreachable child sitemaps */ }
+                            }
+                        }
+                        else if (rootName == "urlset")
+                        {
+                            ExtractUrlsFromSitemap(xml, pageUrls, options.Url.Host);
+                        }
+
+                        if (pageUrls.Count > 0)
+                            break;
+                    }
+                    catch { /* try next candidate */ }
+                }
+            }
+
+            if (pageUrls.Count == 0)
+                return null;
+
+            string tempFile = Path.GetTempFileName();
+            File.WriteAllLines(tempFile, pageUrls);
+            return tempFile;
+        }
+
+        /// <summary>
+        /// Parses a sitemap XML document and adds all <loc> URLs that belong to
+        /// <paramref name="host"/> into <paramref name="urls"/>.
+        /// </summary>
+        private static void ExtractUrlsFromSitemap(string xml, HashSet<string> urls, string host)
+        {
+            try
+            {
+                var doc = XDocument.Parse(xml);
+                var found = doc.Descendants()
+                    .Where(e => e.Name.LocalName == "loc")
+                    .Select(e => e.Value.Trim())
+                    .Where(u => Uri.TryCreate(u, UriKind.Absolute, out Uri parsed)
+                                && string.Equals(parsed.Host, host, StringComparison.OrdinalIgnoreCase));
+
+                foreach (var url in found)
+                    urls.Add(url);
+            }
+            catch { /* ignore malformed XML */ }
         }
 
         /// <summary>
@@ -454,6 +592,19 @@ namespace WebsiteDownloader.Services
         public int RetryCount { get; }
 
         /// <summary>
+        /// Gets a value indicating whether to restrict wget to the starting URL's path
+        /// (passes <c>--no-parent</c>), preventing it from following links up the directory tree.
+        /// </summary>
+        public bool RestrictToPath { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether to pre-fetch the site's sitemap and use the
+        /// discovered URLs as the download seed list instead of recursive crawling.
+        /// Recommended for JavaScript-heavy sites whose navigation is not in static HTML.
+        /// </summary>
+        public bool UseSitemap { get; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="DownloadOptions"/> class.
         /// </summary>
         public DownloadOptions(
@@ -470,7 +621,9 @@ namespace WebsiteDownloader.Services
             bool ignoreSslErrors = false,
             int connectionTimeout = 30,
             int readTimeout = 60,
-            int retryCount = 3)
+            int retryCount = 3,
+            bool restrictToPath = true,
+            bool useSitemap = false)
         {
             Url = url ?? throw new ArgumentNullException(nameof(url));
             OutputFolder = outputFolder ?? throw new ArgumentNullException(nameof(outputFolder));
@@ -486,6 +639,8 @@ namespace WebsiteDownloader.Services
             ConnectionTimeout = connectionTimeout;
             ReadTimeout = readTimeout;
             RetryCount = retryCount;
+            RestrictToPath = restrictToPath;
+            UseSitemap = useSitemap;
         }
     }
 

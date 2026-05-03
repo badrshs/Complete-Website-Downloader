@@ -83,6 +83,12 @@ namespace WebsiteDownloader.Resources
         public const string SettingsIgnoreSsl = "Ignore SSL certificate errors";
         public const string SettingsIgnoreSslHint = "Use for self-signed or expired certificates";
         
+        // Crawl behaviour
+        public const string SettingsRestrictToPath = "Restrict download to starting path (--no-parent)";
+        public const string SettingsRestrictToPathHint = "Prevents wget from following links that ascend the URL directory tree";
+        public const string SettingsUseSitemap = "Use sitemap.xml for page discovery (recommended for JS-heavy sites)";
+        public const string SettingsUseSitemapHint = "Fetches the site's sitemap, extracts all page URLs, and feeds them to wget instead of recursive crawling";
+        
         // Timeout
         public const string SettingsConnectionTimeout = "Connection timeout (sec):";
         public const string SettingsReadTimeout = "Read timeout (sec):";
