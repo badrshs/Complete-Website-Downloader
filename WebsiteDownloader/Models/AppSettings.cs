@@ -19,9 +19,8 @@ namespace WebsiteDownloader.Models
         public int MaxDepth { get; set; } = 0;  // 0 = unlimited
         public int WaitBetweenRequests { get; set; } = 0;  // seconds
         public string RateLimit { get; set; } = "";  // e.g., "200k"
-        // Legacy resume flags. Kept for backward-compatible deserialization of older
-        // settings files; new code reads ResumeMode below. Default them to null-ish
-        // values so we can detect whether an old file actually specified them.
+        // Legacy resume flags. Kept only for backward-compatible deserialization of older
+        // settings files (migrated into ResumeMode on load); new code reads ResumeMode below.
         public bool NoClobber { get; set; } = false;
         public bool ContinueDownload { get; set; } = true;  // Resume interrupted downloads (-c)
 
