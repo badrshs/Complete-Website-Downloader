@@ -88,7 +88,7 @@ namespace WebsiteDownloader.Services
 
                 // Phase 1: Discover all URLs using spider mode
                 OnProgress(0, 0, 0, "Discovering URLs...");
-                var urls = await DiscoverUrlsAsync(options.Url, options.MaxDepth, cancellationToken);
+                var urls = await DiscoverUrlsAsync(options, cancellationToken);
                 
                 if (cancellationToken.IsCancellationRequested || _isCancelled)
                 {
@@ -208,8 +208,9 @@ namespace WebsiteDownloader.Services
         /// <summary>
         /// Discovers all URLs from a website using spider mode.
         /// </summary>
-        private async Task<List<string>> DiscoverUrlsAsync(Uri url, int maxDepth, CancellationToken ct)
+        private async Task<List<string>> DiscoverUrlsAsync(DownloadOptions options, CancellationToken ct)
         {
+            Uri url = options.Url;
             var urls = new HashSet<string>();
             urls.Add(url.ToString());
 
@@ -217,10 +218,13 @@ namespace WebsiteDownloader.Services
             args.Append("--spider ");
             args.Append("-r ");
             args.Append("-e robots=off ");
-            if (maxDepth > 0)
-                args.Append($"-l {maxDepth} ");
+            if (options.MaxDepth > 0)
+                args.Append($"-l {options.MaxDepth} ");
             else
                 args.Append("-l 5 ");  // Limit depth for URL discovery
+            // Protected sites need credentials/cookies during discovery too,
+            // or the spider only ever sees the login page.
+            WgetDownloader.AppendAuthArguments(args, options);
             args.Append($"\"{url}\"");
 
             var process = new Process
@@ -296,6 +300,11 @@ namespace WebsiteDownloader.Services
                 args.Append($"--connect-timeout={options.ConnectionTimeout} ");
             if (options.ReadTimeout > 0)
                 args.Append($"--read-timeout={options.ReadTimeout} ");
+
+            WgetDownloader.AppendAuthArguments(args, options);
+            if (options.ContentDisposition)
+                args.Append("--content-disposition ");
+            args.Append("--restrict-file-names=windows ");
 
             args.Append($"--tries={options.RetryCount} ");
             args.Append($"\"{urlString}\" ");

@@ -82,6 +82,7 @@
     <Compile Include="Services\NullLogger.cs" />
     <Compile Include="Services\DownloadEngine.cs" />
     <Compile Include="Services\ResumeMode.cs" />
+    <Compile Include="Services\DirectoryStructure.cs" />
     <Compile Include="Services\WgetDownloader.cs" />
     <Compile Include="Services\PlaywrightDownloader.cs" />
     <Compile Include="Services\SizeEstimator.cs" />

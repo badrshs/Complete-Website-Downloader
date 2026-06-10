@@ -38,7 +38,26 @@ namespace WebsiteDownloader.Tests
             int connectionTimeout = 30,
             int readTimeout = 60,
             int retryCount = 3,
-            ResumeMode? resumeMode = ResumeMode.Off)
+            ResumeMode? resumeMode = ResumeMode.Off,
+            bool noParent = false,
+            bool spanHosts = false,
+            string domainList = null,
+            string acceptFileTypes = null,
+            string rejectFileTypes = null,
+            string includeDirectories = null,
+            string excludeDirectories = null,
+            bool ignoreFilterCase = false,
+            string downloadQuota = null,
+            int maxRedirect = 20,
+            string httpUser = null,
+            string httpPassword = null,
+            string cookiesFilePath = null,
+            bool keepSessionCookies = false,
+            string customHeaders = null,
+            string referer = null,
+            bool randomWait = false,
+            bool contentDisposition = false,
+            DirectoryStructure directoryStructure = DirectoryStructure.Default)
         {
             return new DownloadOptions(
                 url: new Uri(url),
@@ -53,7 +72,26 @@ namespace WebsiteDownloader.Tests
                 connectionTimeout: connectionTimeout,
                 readTimeout: readTimeout,
                 retryCount: retryCount,
-                resumeMode: resumeMode);
+                resumeMode: resumeMode,
+                noParent: noParent,
+                spanHosts: spanHosts,
+                domainList: domainList,
+                acceptFileTypes: acceptFileTypes,
+                rejectFileTypes: rejectFileTypes,
+                includeDirectories: includeDirectories,
+                excludeDirectories: excludeDirectories,
+                ignoreFilterCase: ignoreFilterCase,
+                downloadQuota: downloadQuota,
+                maxRedirect: maxRedirect,
+                httpUser: httpUser,
+                httpPassword: httpPassword,
+                cookiesFilePath: cookiesFilePath,
+                keepSessionCookies: keepSessionCookies,
+                customHeaders: customHeaders,
+                referer: referer,
+                randomWait: randomWait,
+                contentDisposition: contentDisposition,
+                directoryStructure: directoryStructure);
         }
 
         [Fact]
@@ -137,6 +175,163 @@ namespace WebsiteDownloader.Tests
             if (System.Text.RegularExpressions.Regex.IsMatch(args, @"(^|\s)-N(\s|$)")) count++;
             if (System.Text.RegularExpressions.Regex.IsMatch(args, @"(^|\s)-nc(\s|$)")) count++;
             Assert.True(count <= 1, $"More than one resume flag emitted for {mode}: {args}");
+
+            if (expectedFlag != null)
+                Assert.Contains(expectedFlag, args);
+        }
+
+        [Fact]
+        public void RestrictFileNames_Windows_IsAlwaysPresent()
+        {
+            // URLs containing ?, *, : etc. would otherwise produce invalid Windows paths.
+            Assert.Contains("--restrict-file-names=windows ", _sut.BuildArguments(Options()));
+        }
+
+        [Fact]
+        public void NoParent_IsEmittedOnlyWhenSet()
+        {
+            Assert.Contains("-np ", _sut.BuildArguments(Options(noParent: true)));
+            Assert.DoesNotContain("-np ", _sut.BuildArguments(Options(noParent: false)));
+        }
+
+        [Fact]
+        public void SpanHosts_AndDomains_AreEmittedOnlyWhenSet()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("-H ", none);
+            Assert.DoesNotContain("--domains=", none);
+
+            string set = _sut.BuildArguments(Options(spanHosts: true, domainList: "example.com,cdn.example.com"));
+            Assert.Contains("-H ", set);
+            Assert.Contains("--domains=\"example.com,cdn.example.com\" ", set);
+        }
+
+        [Fact]
+        public void AcceptAndRejectFilters_AreEmittedOnlyWhenSet()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("-A ", none);
+            Assert.DoesNotContain("-R ", none);
+
+            string set = _sut.BuildArguments(Options(acceptFileTypes: "pdf,jpg", rejectFileTypes: "zip,exe"));
+            Assert.Contains("-A \"pdf,jpg\" ", set);
+            Assert.Contains("-R \"zip,exe\" ", set);
+        }
+
+        [Fact]
+        public void IncludeAndExcludeDirectories_AreEmittedOnlyWhenSet()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("-I ", none);
+            Assert.DoesNotContain("-X ", none);
+
+            string set = _sut.BuildArguments(Options(includeDirectories: "/blog,/docs", excludeDirectories: "/forum"));
+            Assert.Contains("-I \"/blog,/docs\" ", set);
+            Assert.Contains("-X \"/forum\" ", set);
+        }
+
+        [Fact]
+        public void IgnoreCase_TogglesFilterMatching()
+        {
+            Assert.Contains("--ignore-case ", _sut.BuildArguments(Options(ignoreFilterCase: true)));
+            Assert.DoesNotContain("--ignore-case ", _sut.BuildArguments(Options(ignoreFilterCase: false)));
+        }
+
+        [Fact]
+        public void Quota_IsEmittedOnlyWhenSet()
+        {
+            Assert.DoesNotContain("--quota=", _sut.BuildArguments(Options()));
+            Assert.Contains("--quota=500m ", _sut.BuildArguments(Options(downloadQuota: "500m")));
+        }
+
+        [Fact]
+        public void MaxRedirect_IsEmittedOnlyWhenPositive()
+        {
+            Assert.Contains("--max-redirect=20 ", _sut.BuildArguments(Options()));
+            Assert.Contains("--max-redirect=5 ", _sut.BuildArguments(Options(maxRedirect: 5)));
+            Assert.DoesNotContain("--max-redirect=", _sut.BuildArguments(Options(maxRedirect: 0)));
+        }
+
+        [Fact]
+        public void Credentials_AreEmittedAndSanitized()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("--user=", none);
+            Assert.DoesNotContain("--password=", none);
+
+            string set = _sut.BuildArguments(Options(httpUser: "alice", httpPassword: "p$(ss)"));
+            Assert.Contains("--user=\"alice\" ", set);
+            // Shell metacharacters must be stripped from the password.
+            Assert.Contains("--password=\"pss\" ", set);
+        }
+
+        [Fact]
+        public void CookiesFile_EmitsLoadCookies_AndOptionalSessionFlag()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("--load-cookies", none);
+
+            string withCookies = _sut.BuildArguments(Options(cookiesFilePath: @"C:\cookies.txt"));
+            Assert.Contains("--load-cookies \"C:\\cookies.txt\" ", withCookies);
+            Assert.DoesNotContain("--keep-session-cookies ", withCookies);
+
+            string withSession = _sut.BuildArguments(Options(cookiesFilePath: @"C:\cookies.txt", keepSessionCookies: true));
+            Assert.Contains("--keep-session-cookies ", withSession);
+        }
+
+        [Fact]
+        public void KeepSessionCookies_WithoutCookiesFile_IsNotEmitted()
+        {
+            // The flag only makes sense alongside --load-cookies.
+            string args = _sut.BuildArguments(Options(keepSessionCookies: true));
+            Assert.DoesNotContain("--keep-session-cookies ", args);
+        }
+
+        [Fact]
+        public void CustomHeaders_EmitOnePerLine_AndSkipMalformedLines()
+        {
+            string headers = "Authorization: Bearer abc123\r\nX-Custom: yes\r\nnot-a-header\r\n\r\n";
+            string args = _sut.BuildArguments(Options(customHeaders: headers));
+
+            Assert.Contains("--header \"Authorization: Bearer abc123\" ", args);
+            Assert.Contains("--header \"X-Custom: yes\" ", args);
+            // A line without "Name: value" structure must not produce a --header argument.
+            Assert.DoesNotContain("not-a-header", args);
+        }
+
+        [Fact]
+        public void Referer_IsEmittedOnlyWhenSet()
+        {
+            Assert.DoesNotContain("--referer=", _sut.BuildArguments(Options()));
+            Assert.Contains("--referer=\"https://example.com/page\" ",
+                _sut.BuildArguments(Options(referer: "https://example.com/page")));
+        }
+
+        [Fact]
+        public void RandomWait_AndContentDisposition_AreOptional()
+        {
+            string none = _sut.BuildArguments(Options());
+            Assert.DoesNotContain("--random-wait ", none);
+            Assert.DoesNotContain("--content-disposition ", none);
+
+            string set = _sut.BuildArguments(Options(randomWait: true, contentDisposition: true));
+            Assert.Contains("--random-wait ", set);
+            Assert.Contains("--content-disposition ", set);
+        }
+
+        [Theory]
+        [InlineData(DirectoryStructure.Default, null)]
+        [InlineData(DirectoryStructure.Flat, "-nd ")]
+        [InlineData(DirectoryStructure.ForceFull, "-x ")]
+        public void DirectoryStructure_EmitsAtMostOneFlag(DirectoryStructure structure, string expectedFlag)
+        {
+            string args = _sut.BuildArguments(Options(directoryStructure: structure));
+
+            // -nd and -x are mutually exclusive in wget; never emit both.
+            int count = 0;
+            if (System.Text.RegularExpressions.Regex.IsMatch(args, @"(^|\s)-nd(\s|$)")) count++;
+            if (System.Text.RegularExpressions.Regex.IsMatch(args, @"(^|\s)-x(\s|$)")) count++;
+            Assert.True(count <= 1, $"More than one directory flag emitted for {structure}: {args}");
 
             if (expectedFlag != null)
                 Assert.Contains(expectedFlag, args);

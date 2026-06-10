@@ -113,6 +113,84 @@ namespace WebsiteDownloader.Tests
             }
         }
 
+        [Theory]
+        [InlineData(-1, 20)]     // negative resets to wget default
+        [InlineData(0, 0)]       // 0 (= use wget default) is allowed
+        [InlineData(50, 50)]     // in range, unchanged
+        [InlineData(999, 100)]   // above max clamps to 100
+        public void MaxRedirect_IsNormalized(int input, int expected)
+        {
+            using (var temp = new TempDir())
+            {
+                var s = WithValidFolder(temp);
+                s.MaxRedirect = input;
+                s.ValidateAndFix();
+                Assert.Equal(expected, s.MaxRedirect);
+            }
+        }
+
+        [Theory]
+        [InlineData("", "")]
+        [InlineData(null, "")]
+        [InlineData("500m", "500m")]    // valid size, kept
+        [InlineData("2g", "2g")]
+        [InlineData("lots", "")]        // unparseable, reset to unlimited
+        [InlineData("10x", "")]
+        public void DownloadQuota_InvalidFormat_IsReset(string input, string expected)
+        {
+            using (var temp = new TempDir())
+            {
+                var s = WithValidFolder(temp);
+                s.DownloadQuota = input;
+                s.ValidateAndFix();
+                Assert.Equal(expected, s.DownloadQuota);
+            }
+        }
+
+        [Fact]
+        public void NullFilterAndAuthStrings_AreNormalizedToEmpty()
+        {
+            using (var temp = new TempDir())
+            {
+                var s = WithValidFolder(temp);
+                s.DomainList = null;
+                s.AcceptFileTypes = null;
+                s.RejectFileTypes = null;
+                s.IncludeDirectories = null;
+                s.ExcludeDirectories = null;
+                s.HttpUser = null;
+                s.HttpPassword = null;
+                s.CookiesFilePath = null;
+                s.CustomHeaders = null;
+                s.Referer = null;
+
+                s.ValidateAndFix();
+
+                Assert.Equal("", s.DomainList);
+                Assert.Equal("", s.AcceptFileTypes);
+                Assert.Equal("", s.RejectFileTypes);
+                Assert.Equal("", s.IncludeDirectories);
+                Assert.Equal("", s.ExcludeDirectories);
+                Assert.Equal("", s.HttpUser);
+                Assert.Equal("", s.HttpPassword);
+                Assert.Equal("", s.CookiesFilePath);
+                Assert.Equal("", s.CustomHeaders);
+                Assert.Equal("", s.Referer);
+            }
+        }
+
+        [Fact]
+        public void UndefinedDirectoryStructure_IsResetToDefault()
+        {
+            using (var temp = new TempDir())
+            {
+                var s = WithValidFolder(temp);
+                s.DirectoryStructure = (WebsiteDownloader.Services.DirectoryStructure)99;
+                s.ValidateAndFix();
+                Assert.Equal(WebsiteDownloader.Services.DirectoryStructure.Default, s.DirectoryStructure);
+            }
+        }
+
         [Fact]
         public void TinyWindowDimensions_AreResetToDefaults()
         {

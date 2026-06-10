@@ -305,7 +305,26 @@ namespace WebsiteDownloader
                 connectionTimeout: _settings.ConnectionTimeout,
                 readTimeout: _settings.ReadTimeout,
                 retryCount: _settings.RetryCount,
-                resumeMode: _settings.ResumeMode
+                resumeMode: _settings.ResumeMode,
+                noParent: _settings.NoParent,
+                spanHosts: _settings.SpanHosts,
+                domainList: _settings.DomainList,
+                acceptFileTypes: _settings.AcceptFileTypes,
+                rejectFileTypes: _settings.RejectFileTypes,
+                includeDirectories: _settings.IncludeDirectories,
+                excludeDirectories: _settings.ExcludeDirectories,
+                ignoreFilterCase: _settings.IgnoreFilterCase,
+                downloadQuota: _settings.DownloadQuota,
+                maxRedirect: _settings.MaxRedirect,
+                httpUser: _settings.HttpUser,
+                httpPassword: _settings.HttpPassword,
+                cookiesFilePath: _settings.CookiesFilePath,
+                keepSessionCookies: _settings.KeepSessionCookies,
+                customHeaders: _settings.CustomHeaders,
+                referer: _settings.Referer,
+                randomWait: _settings.RandomWait,
+                contentDisposition: _settings.ContentDisposition,
+                directoryStructure: _settings.DirectoryStructure
             );
 
             SetDownloadingState(true);

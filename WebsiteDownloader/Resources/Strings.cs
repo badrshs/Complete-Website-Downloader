@@ -137,6 +137,45 @@ namespace WebsiteDownloader.Resources
         public const string ValidationTimeoutInvalid = "Timeout must be between {0} and {1} seconds.";
         public const string ValidationRetryInvalid = "Retry count must be between 0 and 20.";
         public const string ValidationThreadCountInvalid = "Thread count must be between 1 and 16.";
+        public const string ValidationQuotaInvalid = "Invalid download quota format.\n\nExpected format: number followed by optional k, m, or g\nExamples: 500m, 2g (empty = unlimited)";
+        public const string ValidationCookiesFileNotFound = "Cookies file not found:\n{0}\n\nExport cookies from your browser in Netscape format, or clear the field.";
+        public const string ValidationHeaderInvalid = "Invalid custom header (expected \"Name: value\"):\n{0}";
+        public const string ValidationRefererInvalid = "Referer must be a valid HTTP or HTTPS URL, or empty.";
+
+        // Settings - Filters tab
+        public const string SettingsNoParent = "Stay within the start URL's folder (don't ascend to parent)";
+        public const string SettingsSpanHosts = "Allow following links to other hosts (use with allowed domains)";
+        public const string SettingsDomains = "Allowed domains:";
+        public const string SettingsDomainsHint = "(comma-separated, e.g. example.com,cdn.example.com - empty = start host only)";
+        public const string SettingsAcceptTypes = "Only download types:";
+        public const string SettingsAcceptTypesHint = "(comma-separated, e.g. pdf,jpg,png - empty = everything)";
+        public const string SettingsRejectTypes = "Skip file types:";
+        public const string SettingsRejectTypesHint = "(comma-separated, e.g. zip,exe,iso)";
+        public const string SettingsIncludeDirs = "Only these folders:";
+        public const string SettingsIncludeDirsHint = "(comma-separated paths, e.g. /blog,/docs)";
+        public const string SettingsExcludeDirs = "Skip these folders:";
+        public const string SettingsExcludeDirsHint = "(comma-separated paths, e.g. /forum,/ads)";
+        public const string SettingsIgnoreFilterCase = "Case-insensitive filter matching";
+        public const string SettingsQuota = "Total size limit:";
+        public const string SettingsQuotaHint = "(e.g. 500m, 2g - stops once exceeded; empty = unlimited)";
+        public const string SettingsMaxRedirect = "Max redirects:";
+
+        // Settings - Authentication tab
+        public const string SettingsHttpUser = "Username:";
+        public const string SettingsHttpPassword = "Password:";
+        public const string SettingsPasswordWarning = "Credentials are stored in plain text in settings.json.";
+        public const string SettingsCookiesFile = "Cookies file:";
+        public const string SettingsCookiesFileHint = "Export cookies from your browser (Netscape format) to download login-protected sites.";
+        public const string SettingsKeepSessionCookies = "Include session cookies";
+        public const string SettingsReferer = "Referer URL:";
+        public const string SettingsCustomHeaders = "Custom headers (one per line, e.g. Authorization: Bearer xyz):";
+        public const string SettingsBrowse = "Browse...";
+        public const string CookiesFileFilter = "Cookies files (*.txt)|*.txt|All files (*.*)|*.*";
+
+        // Settings - Download behaviour
+        public const string SettingsRandomWait = "Randomize wait";
+        public const string SettingsContentDisposition = "Use server-suggested file names (Content-Disposition)";
+        public const string SettingsDirectoryStructure = "Folder structure:";
         
         // Download Engine
         public const string SettingsEngineLabel = "Download Engine:";

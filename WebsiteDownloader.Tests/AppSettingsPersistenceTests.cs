@@ -62,6 +62,74 @@ namespace WebsiteDownloader.Tests
         }
 
         [Fact]
+        public void SaveThenLoad_RoundTripsFilterAndAuthValues()
+        {
+            var loaded = WithRedirectedAppData(_ =>
+            {
+                var s = new AppSettings
+                {
+                    NoParent = true,
+                    SpanHosts = true,
+                    DomainList = "example.com,cdn.example.com",
+                    AcceptFileTypes = "pdf,jpg",
+                    RejectFileTypes = "zip",
+                    IncludeDirectories = "/blog",
+                    ExcludeDirectories = "/forum",
+                    IgnoreFilterCase = true,
+                    DownloadQuota = "500m",
+                    MaxRedirect = 7,
+                    HttpUser = "alice",
+                    HttpPassword = "secret",
+                    CustomHeaders = "X-Test: 1",
+                    Referer = "https://example.com/",
+                    RandomWait = true,
+                    ContentDisposition = true,
+                    DirectoryStructure = DirectoryStructure.Flat,
+                };
+                Assert.True(s.Save());
+                return AppSettings.Load();
+            });
+
+            Assert.True(loaded.NoParent);
+            Assert.True(loaded.SpanHosts);
+            Assert.Equal("example.com,cdn.example.com", loaded.DomainList);
+            Assert.Equal("pdf,jpg", loaded.AcceptFileTypes);
+            Assert.Equal("zip", loaded.RejectFileTypes);
+            Assert.Equal("/blog", loaded.IncludeDirectories);
+            Assert.Equal("/forum", loaded.ExcludeDirectories);
+            Assert.True(loaded.IgnoreFilterCase);
+            Assert.Equal("500m", loaded.DownloadQuota);
+            Assert.Equal(7, loaded.MaxRedirect);
+            Assert.Equal("alice", loaded.HttpUser);
+            Assert.Equal("secret", loaded.HttpPassword);
+            Assert.Equal("X-Test: 1", loaded.CustomHeaders);
+            Assert.Equal("https://example.com/", loaded.Referer);
+            Assert.True(loaded.RandomWait);
+            Assert.True(loaded.ContentDisposition);
+            Assert.Equal(DirectoryStructure.Flat, loaded.DirectoryStructure);
+        }
+
+        [Fact]
+        public void Load_OlderFileWithoutNewFields_GetsSafeDefaults()
+        {
+            var loaded = WithRedirectedAppData(path =>
+            {
+                // A settings file written before the filter/auth fields existed.
+                string json = "{ \"UserAgent\": \"Old\", \"ResumeMode\": 2 }";
+                File.WriteAllText(Path.Combine(path, AppConstants.SettingsFileName), json);
+                return AppSettings.Load();
+            });
+
+            Assert.False(loaded.NoParent);
+            Assert.Equal("", loaded.DomainList);
+            Assert.Equal("", loaded.AcceptFileTypes);
+            Assert.Equal("", loaded.DownloadQuota);
+            Assert.Equal(20, loaded.MaxRedirect);
+            Assert.Equal("", loaded.HttpUser);
+            Assert.Equal(DirectoryStructure.Default, loaded.DirectoryStructure);
+        }
+
+        [Fact]
         public void Save_WritesSettingsFileToAppDataFolder()
         {
             WithRedirectedAppData(path =>

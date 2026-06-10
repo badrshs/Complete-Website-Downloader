@@ -17,7 +17,18 @@ namespace WebsiteDownloader
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             InitializeComponent();
             PopulateResumeModes();
+            PopulateDirectoryStructures();
             LoadSettings();
+        }
+
+        // Items must be added in DirectoryStructure enum order (Default, Flat, ForceFull)
+        // so the combo's SelectedIndex maps directly to the enum value.
+        private void PopulateDirectoryStructures()
+        {
+            cboDirectoryStructure.Items.Clear();
+            cboDirectoryStructure.Items.Add("Mirror the site's folder structure (default)");  // Default
+            cboDirectoryStructure.Items.Add("Flat - save all files into one folder");         // Flat
+            cboDirectoryStructure.Items.Add("Always create the full folder hierarchy");       // ForceFull
         }
 
         // Items must be added in ResumeMode enum order (Off, Continue, Timestamping,
@@ -75,6 +86,31 @@ namespace WebsiteDownloader
             numReadTimeout.Value = _settings.ReadTimeout;
             numRetryCount.Value = _settings.RetryCount;
 
+            // Download behaviour
+            chkRandomWait.Checked = _settings.RandomWait;
+            chkContentDisposition.Checked = _settings.ContentDisposition;
+            cboDirectoryStructure.SelectedIndex = (int)_settings.DirectoryStructure;
+
+            // Filters
+            chkNoParent.Checked = _settings.NoParent;
+            chkSpanHosts.Checked = _settings.SpanHosts;
+            txtDomains.Text = _settings.DomainList;
+            txtAcceptTypes.Text = _settings.AcceptFileTypes;
+            txtRejectTypes.Text = _settings.RejectFileTypes;
+            txtIncludeDirs.Text = _settings.IncludeDirectories;
+            txtExcludeDirs.Text = _settings.ExcludeDirectories;
+            chkIgnoreFilterCase.Checked = _settings.IgnoreFilterCase;
+            txtQuota.Text = _settings.DownloadQuota;
+            numMaxRedirect.Value = _settings.MaxRedirect;
+
+            // Authentication
+            txtHttpUser.Text = _settings.HttpUser;
+            txtHttpPassword.Text = _settings.HttpPassword;
+            txtCookiesFile.Text = _settings.CookiesFilePath;
+            chkKeepSessionCookies.Checked = _settings.KeepSessionCookies;
+            txtReferer.Text = _settings.Referer;
+            txtCustomHeaders.Text = _settings.CustomHeaders;
+
             // Post-download options
             chkExportZip.Checked = _settings.ExportToZip;
             chkDeleteAfterZip.Checked = _settings.DeleteAfterZip;
@@ -122,6 +158,31 @@ namespace WebsiteDownloader
             _settings.ConnectionTimeout = (int)numConnectionTimeout.Value;
             _settings.ReadTimeout = (int)numReadTimeout.Value;
             _settings.RetryCount = (int)numRetryCount.Value;
+
+            // Download behaviour
+            _settings.RandomWait = chkRandomWait.Checked;
+            _settings.ContentDisposition = chkContentDisposition.Checked;
+            _settings.DirectoryStructure = (DirectoryStructure)cboDirectoryStructure.SelectedIndex;
+
+            // Filters
+            _settings.NoParent = chkNoParent.Checked;
+            _settings.SpanHosts = chkSpanHosts.Checked;
+            _settings.DomainList = txtDomains.Text.Trim();
+            _settings.AcceptFileTypes = txtAcceptTypes.Text.Trim();
+            _settings.RejectFileTypes = txtRejectTypes.Text.Trim();
+            _settings.IncludeDirectories = txtIncludeDirs.Text.Trim();
+            _settings.ExcludeDirectories = txtExcludeDirs.Text.Trim();
+            _settings.IgnoreFilterCase = chkIgnoreFilterCase.Checked;
+            _settings.DownloadQuota = txtQuota.Text.Trim();
+            _settings.MaxRedirect = (int)numMaxRedirect.Value;
+
+            // Authentication
+            _settings.HttpUser = txtHttpUser.Text.Trim();
+            _settings.HttpPassword = txtHttpPassword.Text;
+            _settings.CookiesFilePath = txtCookiesFile.Text.Trim();
+            _settings.KeepSessionCookies = chkKeepSessionCookies.Checked;
+            _settings.Referer = txtReferer.Text.Trim();
+            _settings.CustomHeaders = txtCustomHeaders.Text.Trim();
 
             // Post-download options
             _settings.ExportToZip = chkExportZip.Checked;
@@ -221,7 +282,55 @@ namespace WebsiteDownloader
                 return false;
             }
 
+            // Validate quota format (same size format as rate limit)
+            if (!ValidationPatterns.RateLimit.IsMatch(txtQuota.Text.Trim()))
+            {
+                ShowValidationError(Strings.ValidationQuotaInvalid, txtQuota);
+                return false;
+            }
+
+            // Validate cookies file exists when one is given
+            string cookiesFile = txtCookiesFile.Text.Trim();
+            if (cookiesFile.Length > 0 && !System.IO.File.Exists(cookiesFile))
+            {
+                ShowValidationError(string.Format(Strings.ValidationCookiesFileNotFound, cookiesFile), txtCookiesFile);
+                return false;
+            }
+
+            // Validate custom headers: each non-blank line must be "Name: value"
+            foreach (var rawLine in txtCustomHeaders.Lines)
+            {
+                var header = rawLine.Trim();
+                if (header.Length > 0 && !header.Contains(":"))
+                {
+                    ShowValidationError(string.Format(Strings.ValidationHeaderInvalid, header), txtCustomHeaders);
+                    return false;
+                }
+            }
+
+            // Validate referer is a URL when given
+            string referer = txtReferer.Text.Trim();
+            if (referer.Length > 0 && !ValidationPatterns.HttpUrl.IsMatch(referer))
+            {
+                ShowValidationError(Strings.ValidationRefererInvalid, txtReferer);
+                return false;
+            }
+
             return true;
+        }
+
+        private void btnBrowseCookies_Click(object sender, EventArgs e)
+        {
+            using (var ofd = new OpenFileDialog())
+            {
+                ofd.Filter = Strings.CookiesFileFilter;
+                ofd.Title = Strings.SettingsCookiesFile.TrimEnd(':');
+
+                if (ofd.ShowDialog(this) == DialogResult.OK)
+                {
+                    txtCookiesFile.Text = ofd.FileName;
+                }
+            }
         }
 
         private void ShowValidationError(string message, Control control)
@@ -267,7 +376,32 @@ namespace WebsiteDownloader
                 numConnectionTimeout.Value = defaults.ConnectionTimeout;
                 numReadTimeout.Value = defaults.ReadTimeout;
                 numRetryCount.Value = defaults.RetryCount;
-                
+
+                // Download behaviour
+                chkRandomWait.Checked = defaults.RandomWait;
+                chkContentDisposition.Checked = defaults.ContentDisposition;
+                cboDirectoryStructure.SelectedIndex = (int)defaults.DirectoryStructure;
+
+                // Filters
+                chkNoParent.Checked = defaults.NoParent;
+                chkSpanHosts.Checked = defaults.SpanHosts;
+                txtDomains.Text = defaults.DomainList;
+                txtAcceptTypes.Text = defaults.AcceptFileTypes;
+                txtRejectTypes.Text = defaults.RejectFileTypes;
+                txtIncludeDirs.Text = defaults.IncludeDirectories;
+                txtExcludeDirs.Text = defaults.ExcludeDirectories;
+                chkIgnoreFilterCase.Checked = defaults.IgnoreFilterCase;
+                txtQuota.Text = defaults.DownloadQuota;
+                numMaxRedirect.Value = defaults.MaxRedirect;
+
+                // Authentication
+                txtHttpUser.Text = defaults.HttpUser;
+                txtHttpPassword.Text = defaults.HttpPassword;
+                txtCookiesFile.Text = defaults.CookiesFilePath;
+                chkKeepSessionCookies.Checked = defaults.KeepSessionCookies;
+                txtReferer.Text = defaults.Referer;
+                txtCustomHeaders.Text = defaults.CustomHeaders;
+
                 // Post-download options
                 chkExportZip.Checked = defaults.ExportToZip;
                 chkDeleteAfterZip.Checked = defaults.DeleteAfterZip;

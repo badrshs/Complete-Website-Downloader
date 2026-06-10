@@ -35,6 +35,31 @@ namespace WebsiteDownloader.Models
         public int ConnectionTimeout { get; set; } = 30;    // Connection timeout in seconds
         public int ReadTimeout { get; set; } = 60;          // Read timeout in seconds
         public int RetryCount { get; set; } = 3;            // Number of retries on failure
+
+        // Recursion scope and filters
+        public bool NoParent { get; set; } = false;            // -np: never ascend above the start URL
+        public bool SpanHosts { get; set; } = false;            // -H: allow crossing to other hosts
+        public string DomainList { get; set; } = "";            // --domains: comma-separated allowed domains
+        public string AcceptFileTypes { get; set; } = "";       // -A: comma-separated accepted suffixes
+        public string RejectFileTypes { get; set; } = "";       // -R: comma-separated rejected suffixes
+        public string IncludeDirectories { get; set; } = "";    // -I: comma-separated directories to follow
+        public string ExcludeDirectories { get; set; } = "";    // -X: comma-separated directories to skip
+        public bool IgnoreFilterCase { get; set; } = false;     // --ignore-case for the filters above
+        public string DownloadQuota { get; set; } = "";         // --quota: total size cap, e.g. "500m"
+        public int MaxRedirect { get; set; } = 20;              // --max-redirect (20 = wget default)
+
+        // Authentication / request headers
+        public string HttpUser { get; set; } = "";              // --user
+        public string HttpPassword { get; set; } = "";          // --password (stored in plain text)
+        public string CookiesFilePath { get; set; } = "";       // --load-cookies: browser-exported cookies file
+        public bool KeepSessionCookies { get; set; } = false;   // --keep-session-cookies
+        public string CustomHeaders { get; set; } = "";         // --header: one "Name: value" per line
+        public string Referer { get; set; } = "";               // --referer
+
+        // Download behaviour
+        public bool RandomWait { get; set; } = false;            // --random-wait: vary the wait time
+        public bool ContentDisposition { get; set; } = false;    // --content-disposition: server file names
+        public Services.DirectoryStructure DirectoryStructure { get; set; } = Services.DirectoryStructure.Default;
         
         // Post-download options
         public bool ExportToZip { get; set; } = false;      // Zip the downloaded folder
@@ -186,6 +211,29 @@ namespace WebsiteDownloader.Models
             if (ThreadCount > 16) ThreadCount = 16;
             if (PeakHoursStart < 0 || PeakHoursStart > 23) PeakHoursStart = 9;
             if (PeakHoursEnd < 0 || PeakHoursEnd > 23) PeakHoursEnd = 17;
+            if (MaxRedirect < 0) MaxRedirect = 20;
+            if (MaxRedirect > 100) MaxRedirect = 100;
+
+            // Normalize null strings (hand-edited or partial settings files) to empty
+            DomainList = DomainList ?? "";
+            AcceptFileTypes = AcceptFileTypes ?? "";
+            RejectFileTypes = RejectFileTypes ?? "";
+            IncludeDirectories = IncludeDirectories ?? "";
+            ExcludeDirectories = ExcludeDirectories ?? "";
+            HttpUser = HttpUser ?? "";
+            HttpPassword = HttpPassword ?? "";
+            CookiesFilePath = CookiesFilePath ?? "";
+            CustomHeaders = CustomHeaders ?? "";
+            Referer = Referer ?? "";
+
+            // Quota uses the same size format as rate limit; reset if unparseable
+            DownloadQuota = DownloadQuota ?? "";
+            if (!Helpers.ValidationPatterns.RateLimit.IsMatch(DownloadQuota))
+                DownloadQuota = "";
+
+            // Hand-edited files may contain out-of-range enum values
+            if (!System.Enum.IsDefined(typeof(Services.DirectoryStructure), DirectoryStructure))
+                DirectoryStructure = Services.DirectoryStructure.Default;
 
             // Ensure window dimensions are reasonable
             if (WindowWidth < 400) WindowWidth = 600;
