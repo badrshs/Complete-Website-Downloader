@@ -286,8 +286,8 @@ namespace WebsiteDownloader.Services
                 args.Append("-k ");
             if (options.AdjustExtensions)
                 args.Append("-E ");
-            if (options.ContinueDownload)
-                args.Append("-c ");
+            // Resume/skip behaviour: emit exactly one of -c / -N / -nc (or nothing).
+            args.Append(options.ResumeMode.ToWgetFlag());
             if (options.IgnoreSslErrors)
                 args.Append("--no-check-certificate ");
             if (!string.IsNullOrEmpty(options.RateLimit))

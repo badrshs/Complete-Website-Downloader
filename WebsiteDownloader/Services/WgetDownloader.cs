@@ -276,12 +276,9 @@ namespace WebsiteDownloader.Services
             if (!string.IsNullOrEmpty(options.RateLimit))
                 args.Append($"--limit-rate={SanitizeArgument(options.RateLimit)} ");
 
-            if (options.NoClobber)
-                args.Append("-nc ");               // Don't overwrite existing files
-
-            // New options: Continue/Resume
-            if (options.ContinueDownload)
-                args.Append("-c ");                // Continue getting a partially-downloaded file
+            // Resume/skip behaviour: emit exactly one of -c / -N / -nc (or nothing).
+            // These flags are mutually exclusive in wget, so this must never combine them.
+            args.Append(options.ResumeMode.ToWgetFlag());
 
             // SSL/TLS options
             if (options.IgnoreSslErrors)
@@ -436,6 +433,12 @@ namespace WebsiteDownloader.Services
         public bool ContinueDownload { get; }
 
         /// <summary>
+        /// Gets how a restart/re-run treats files already present on disk.
+        /// Maps to a single, mutually-exclusive wget flag (-c / -N / -nc).
+        /// </summary>
+        public ResumeMode ResumeMode { get; }
+
+        /// <summary>
         /// Gets a value indicating whether to ignore SSL certificate errors.
         /// </summary>
         public bool IgnoreSslErrors { get; }
@@ -472,7 +475,8 @@ namespace WebsiteDownloader.Services
             bool ignoreSslErrors = false,
             int connectionTimeout = 30,
             int readTimeout = 60,
-            int retryCount = 3)
+            int retryCount = 3,
+            ResumeMode? resumeMode = null)
         {
             Url = url ?? throw new ArgumentNullException(nameof(url));
             OutputFolder = outputFolder ?? throw new ArgumentNullException(nameof(outputFolder));
@@ -484,6 +488,9 @@ namespace WebsiteDownloader.Services
             RateLimit = rateLimit;
             NoClobber = noClobber;
             ContinueDownload = continueDownload;
+            // When the caller doesn't specify a mode explicitly, derive it from the legacy
+            // booleans so existing call sites keep their previous behaviour.
+            ResumeMode = resumeMode ?? ResumeModeExtensions.FromLegacyFlags(noClobber, continueDownload);
             IgnoreSslErrors = ignoreSslErrors;
             ConnectionTimeout = connectionTimeout;
             ReadTimeout = readTimeout;

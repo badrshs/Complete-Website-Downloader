@@ -46,8 +46,9 @@ namespace WebsiteDownloader
             this.lblRateLimit = new System.Windows.Forms.Label();
             this.txtRateLimit = new System.Windows.Forms.TextBox();
             this.lblRateLimitHint = new System.Windows.Forms.Label();
-            this.chkNoClobber = new System.Windows.Forms.CheckBox();
-            this.chkContinueDownload = new System.Windows.Forms.CheckBox();
+            this.lblResumeMode = new System.Windows.Forms.Label();
+            this.cboResumeMode = new System.Windows.Forms.ComboBox();
+            this.lblResumeModeHint = new System.Windows.Forms.Label();
             this.chkIgnoreSsl = new System.Windows.Forms.CheckBox();
             
             // Advanced tab controls
@@ -143,8 +144,9 @@ namespace WebsiteDownloader
             this.tabDownload.Controls.Add(this.lblRateLimit);
             this.tabDownload.Controls.Add(this.txtRateLimit);
             this.tabDownload.Controls.Add(this.lblRateLimitHint);
-            this.tabDownload.Controls.Add(this.chkNoClobber);
-            this.tabDownload.Controls.Add(this.chkContinueDownload);
+            this.tabDownload.Controls.Add(this.lblResumeMode);
+            this.tabDownload.Controls.Add(this.cboResumeMode);
+            this.tabDownload.Controls.Add(this.lblResumeModeHint);
             this.tabDownload.Controls.Add(this.chkIgnoreSsl);
             this.tabDownload.Location = new System.Drawing.Point(4, 22);
             this.tabDownload.Name = "tabDownload";
@@ -271,35 +273,41 @@ namespace WebsiteDownloader
             this.lblRateLimitHint.TabIndex = 10;
             this.lblRateLimitHint.Text = "(e.g., 500k, 2m - empty = unlimited)";
             
-            // 
-            // chkNoClobber
-            // 
-            this.chkNoClobber.AutoSize = true;
-            this.chkNoClobber.Location = new System.Drawing.Point(18, 225);
-            this.chkNoClobber.Name = "chkNoClobber";
-            this.chkNoClobber.Size = new System.Drawing.Size(200, 17);
-            this.chkNoClobber.TabIndex = 11;
-            this.chkNoClobber.Text = "Don't overwrite existing files (no-clobber)";
-            this.chkNoClobber.UseVisualStyleBackColor = true;
-            
-            // 
-            // chkContinueDownload
-            // 
-            this.chkContinueDownload.AutoSize = true;
-            this.chkContinueDownload.Checked = true;
-            this.chkContinueDownload.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkContinueDownload.Location = new System.Drawing.Point(18, 250);
-            this.chkContinueDownload.Name = "chkContinueDownload";
-            this.chkContinueDownload.Size = new System.Drawing.Size(215, 17);
-            this.chkContinueDownload.TabIndex = 12;
-            this.chkContinueDownload.Text = "Continue/Resume incomplete downloads";
-            this.chkContinueDownload.UseVisualStyleBackColor = true;
-            
+            //
+            // lblResumeMode
+            //
+            this.lblResumeMode.AutoSize = true;
+            this.lblResumeMode.Location = new System.Drawing.Point(15, 228);
+            this.lblResumeMode.Name = "lblResumeMode";
+            this.lblResumeMode.Size = new System.Drawing.Size(120, 13);
+            this.lblResumeMode.TabIndex = 11;
+            this.lblResumeMode.Text = "On restart (resume/skip):";
+            //
+            // cboResumeMode
+            //
+            this.cboResumeMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboResumeMode.FormattingEnabled = true;
+            this.cboResumeMode.Location = new System.Drawing.Point(150, 225);
+            this.cboResumeMode.Name = "cboResumeMode";
+            this.cboResumeMode.Size = new System.Drawing.Size(260, 21);
+            this.cboResumeMode.TabIndex = 12;
+            //
+            // lblResumeModeHint
+            //
+            this.lblResumeModeHint.AutoSize = true;
+            this.lblResumeModeHint.ForeColor = System.Drawing.SystemColors.GrayText;
+            this.lblResumeModeHint.Location = new System.Drawing.Point(147, 249);
+            this.lblResumeModeHint.MaximumSize = new System.Drawing.Size(265, 0);
+            this.lblResumeModeHint.Name = "lblResumeModeHint";
+            this.lblResumeModeHint.Size = new System.Drawing.Size(150, 13);
+            this.lblResumeModeHint.TabIndex = 0;
+            this.lblResumeModeHint.Text = "";
+
             // 
             // chkIgnoreSsl
             // 
             this.chkIgnoreSsl.AutoSize = true;
-            this.chkIgnoreSsl.Location = new System.Drawing.Point(18, 275);
+            this.chkIgnoreSsl.Location = new System.Drawing.Point(18, 290);
             this.chkIgnoreSsl.Name = "chkIgnoreSsl";
             this.chkIgnoreSsl.Size = new System.Drawing.Size(180, 17);
             this.chkIgnoreSsl.TabIndex = 13;
@@ -845,8 +853,9 @@ namespace WebsiteDownloader
         private System.Windows.Forms.Label lblRateLimit;
         private System.Windows.Forms.TextBox txtRateLimit;
         private System.Windows.Forms.Label lblRateLimitHint;
-        private System.Windows.Forms.CheckBox chkNoClobber;
-        private System.Windows.Forms.CheckBox chkContinueDownload;
+        private System.Windows.Forms.Label lblResumeMode;
+        private System.Windows.Forms.ComboBox cboResumeMode;
+        private System.Windows.Forms.Label lblResumeModeHint;
         private System.Windows.Forms.CheckBox chkIgnoreSsl;
         
         // Advanced tab controls

@@ -16,7 +16,45 @@ namespace WebsiteDownloader
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             InitializeComponent();
+            PopulateResumeModes();
             LoadSettings();
+        }
+
+        // Items must be added in ResumeMode enum order (Off, Continue, Timestamping,
+        // NoClobber) so the combo's SelectedIndex maps directly to the enum value.
+        private void PopulateResumeModes()
+        {
+            cboResumeMode.Items.Clear();
+            cboResumeMode.Items.Add("Re-download everything (overwrite)");        // Off
+            cboResumeMode.Items.Add("Continue interrupted file");                 // Continue
+            cboResumeMode.Items.Add("Skip up-to-date files (recommended)");       // Timestamping
+            cboResumeMode.Items.Add("Skip all existing files");                   // NoClobber
+            cboResumeMode.SelectedIndexChanged += cboResumeMode_SelectedIndexChanged;
+        }
+
+        private void cboResumeMode_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateResumeModeHint();
+        }
+
+        private void UpdateResumeModeHint()
+        {
+            switch ((ResumeMode)cboResumeMode.SelectedIndex)
+            {
+                case ResumeMode.Continue:
+                    lblResumeModeHint.Text = "Resumes a single partly-downloaded file (-c). Does not skip files that already finished.";
+                    break;
+                case ResumeMode.Timestamping:
+                    lblResumeModeHint.Text = "Skips files already up-to-date, re-fetches only missing or changed ones (-N).";
+                    break;
+                case ResumeMode.NoClobber:
+                    lblResumeModeHint.Text = "Never re-downloads anything already on disk (-nc). Fast, but won't refresh changed files.";
+                    break;
+                case ResumeMode.Off:
+                default:
+                    lblResumeModeHint.Text = "No resume: existing files may be re-downloaded and overwritten.";
+                    break;
+            }
         }
 
         private void LoadSettings()
@@ -28,10 +66,10 @@ namespace WebsiteDownloader
             numMaxDepth.Value = _settings.MaxDepth;
             numWaitBetweenRequests.Value = _settings.WaitBetweenRequests;
             txtRateLimit.Text = _settings.RateLimit;
-            chkNoClobber.Checked = _settings.NoClobber;
+            cboResumeMode.SelectedIndex = (int)_settings.ResumeMode;
+            UpdateResumeModeHint();
 
             // New download settings
-            chkContinueDownload.Checked = _settings.ContinueDownload;
             chkIgnoreSsl.Checked = _settings.IgnoreSslErrors;
             numConnectionTimeout.Value = _settings.ConnectionTimeout;
             numReadTimeout.Value = _settings.ReadTimeout;
@@ -77,10 +115,9 @@ namespace WebsiteDownloader
             _settings.MaxDepth = (int)numMaxDepth.Value;
             _settings.WaitBetweenRequests = (int)numWaitBetweenRequests.Value;
             _settings.RateLimit = txtRateLimit.Text.Trim();
-            _settings.NoClobber = chkNoClobber.Checked;
+            _settings.ResumeMode = (ResumeMode)cboResumeMode.SelectedIndex;
 
             // New download settings
-            _settings.ContinueDownload = chkContinueDownload.Checked;
             _settings.IgnoreSslErrors = chkIgnoreSsl.Checked;
             _settings.ConnectionTimeout = (int)numConnectionTimeout.Value;
             _settings.ReadTimeout = (int)numReadTimeout.Value;
@@ -222,10 +259,10 @@ namespace WebsiteDownloader
                 numMaxDepth.Value = defaults.MaxDepth;
                 numWaitBetweenRequests.Value = defaults.WaitBetweenRequests;
                 txtRateLimit.Text = defaults.RateLimit;
-                chkNoClobber.Checked = defaults.NoClobber;
-                
+                cboResumeMode.SelectedIndex = (int)defaults.ResumeMode;
+                UpdateResumeModeHint();
+
                 // New download settings
-                chkContinueDownload.Checked = defaults.ContinueDownload;
                 chkIgnoreSsl.Checked = defaults.IgnoreSslErrors;
                 numConnectionTimeout.Value = defaults.ConnectionTimeout;
                 numReadTimeout.Value = defaults.ReadTimeout;

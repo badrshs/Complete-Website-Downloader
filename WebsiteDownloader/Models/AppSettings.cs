@@ -19,10 +19,19 @@ namespace WebsiteDownloader.Models
         public int MaxDepth { get; set; } = 0;  // 0 = unlimited
         public int WaitBetweenRequests { get; set; } = 0;  // seconds
         public string RateLimit { get; set; } = "";  // e.g., "200k"
+        // Legacy resume flags. Kept for backward-compatible deserialization of older
+        // settings files; new code reads ResumeMode below. Default them to null-ish
+        // values so we can detect whether an old file actually specified them.
         public bool NoClobber { get; set; } = false;
-        
-        // New download settings
         public bool ContinueDownload { get; set; } = true;  // Resume interrupted downloads (-c)
+
+        // Resume/skip behaviour for the wget-based engines. Replaces the two booleans above.
+        // Timestamping (-N) is the safest default for continuing an interrupted mirror:
+        // it skips files already up-to-date and only re-fetches missing/changed ones.
+        // New installs default to Timestamping (-N). Older settings files that predate this
+        // field are migrated from the legacy booleans in Load() before this default applies.
+        public Services.ResumeMode ResumeMode { get; set; } = Services.ResumeMode.Timestamping;
+
         public bool IgnoreSslErrors { get; set; } = false;  // Skip certificate validation
         public int ConnectionTimeout { get; set; } = 30;    // Connection timeout in seconds
         public int ReadTimeout { get; set; } = 60;          // Read timeout in seconds
@@ -80,9 +89,16 @@ namespace WebsiteDownloader.Models
                 if (File.Exists(AppConstants.SettingsFilePath))
                 {
                     string json = File.ReadAllText(AppConstants.SettingsFilePath);
+                    // Detect whether this file predates the ResumeMode field, so we can
+                    // migrate it from the legacy NoClobber/ContinueDownload booleans.
+                    bool hasResumeMode = json.IndexOf("\"ResumeMode\"", StringComparison.OrdinalIgnoreCase) >= 0;
                     var settings = JsonConvert.DeserializeObject<AppSettings>(json);
                     if (settings != null)
                     {
+                        if (!hasResumeMode)
+                            settings.ResumeMode = Services.ResumeModeExtensions.FromLegacyFlags(
+                                settings.NoClobber, settings.ContinueDownload);
+
                         // Validate loaded settings
                         settings.ValidateAndFix();
                         return settings;
