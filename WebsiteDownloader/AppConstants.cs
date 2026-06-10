@@ -61,9 +61,16 @@ namespace WebsiteDownloader
         public const int UpdateCheckIntervalDays = 7;
 
         /// <summary>
+        /// Test-only override for <see cref="AppDataFolder"/>. When non-null, persistence
+        /// (settings/history/queue) is redirected here instead of the user's LocalAppData,
+        /// so tests can use a throwaway temp directory. Null in normal operation.
+        /// </summary>
+        internal static string AppDataFolderOverride { get; set; }
+
+        /// <summary>
         /// Gets the application data folder path.
         /// </summary>
-        public static string AppDataFolder => Path.Combine(
+        public static string AppDataFolder => AppDataFolderOverride ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppName);
 

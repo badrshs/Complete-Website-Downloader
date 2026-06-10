@@ -248,7 +248,7 @@ namespace WebsiteDownloader.Services
                     nameof(options));
         }
 
-        private string BuildArguments(DownloadOptions options)
+        internal string BuildArguments(DownloadOptions options)
         {
             var args = new StringBuilder();
 
@@ -308,7 +308,7 @@ namespace WebsiteDownloader.Services
         /// </summary>
         /// <param name="value">The value to sanitize.</param>
         /// <returns>A sanitized string safe for command-line use.</returns>
-        private static string SanitizeArgument(string value)
+        internal static string SanitizeArgument(string value)
         {
             if (string.IsNullOrEmpty(value))
                 return value;

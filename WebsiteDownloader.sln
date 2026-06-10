@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebsiteDownloader", "WebsiteDownloader\WebsiteDownloader.csproj", "{B6F28FB0-98C8-451F-86C9-C5A814200375}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebsiteDownloader.Tests", "WebsiteDownloader.Tests\WebsiteDownloader.Tests.csproj", "{A1EA5555-F337-4282-98C6-CF7C5B37BEA0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{B6F28FB0-98C8-451F-86C9-C5A814200375}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B6F28FB0-98C8-451F-86C9-C5A814200375}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B6F28FB0-98C8-451F-86C9-C5A814200375}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1EA5555-F337-4282-98C6-CF7C5B37BEA0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1EA5555-F337-4282-98C6-CF7C5B37BEA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1EA5555-F337-4282-98C6-CF7C5B37BEA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1EA5555-F337-4282-98C6-CF7C5B37BEA0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

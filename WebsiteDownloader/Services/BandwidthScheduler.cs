@@ -9,9 +9,19 @@ namespace WebsiteDownloader.Services
     {
         private readonly Models.AppSettings _settings;
 
+        // Source of "now". Defaults to the real clock; tests inject a fixed time so the
+        // peak/off-peak logic can be verified deterministically.
+        private readonly Func<DateTime> _now;
+
         public BandwidthScheduler(Models.AppSettings settings)
+            : this(settings, () => DateTime.Now)
+        {
+        }
+
+        internal BandwidthScheduler(Models.AppSettings settings, Func<DateTime> nowProvider)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _now = nowProvider ?? throw new ArgumentNullException(nameof(nowProvider));
         }
 
         /// <summary>
@@ -28,7 +38,7 @@ namespace WebsiteDownloader.Services
             {
                 if (!IsEnabled) return false;
 
-                int currentHour = DateTime.Now.Hour;
+                int currentHour = _now().Hour;
                 
                 // Handle wraparound (e.g., peak from 22:00 to 06:00)
                 if (_settings.PeakHoursStart < _settings.PeakHoursEnd)
@@ -69,14 +79,14 @@ namespace WebsiteDownloader.Services
             if (!IsEnabled)
                 return DateTime.MaxValue;
 
-            int currentHour = DateTime.Now.Hour;
-            DateTime today = DateTime.Today;
+            DateTime now = _now();
+            DateTime today = now.Date;
 
             if (IsPeakHours)
             {
                 // Currently peak, next change is at peak end
                 var endTime = today.AddHours(_settings.PeakHoursEnd);
-                if (endTime <= DateTime.Now)
+                if (endTime <= now)
                     endTime = endTime.AddDays(1);
                 return endTime;
             }
@@ -84,7 +94,7 @@ namespace WebsiteDownloader.Services
             {
                 // Currently off-peak, next change is at peak start
                 var startTime = today.AddHours(_settings.PeakHoursStart);
-                if (startTime <= DateTime.Now)
+                if (startTime <= now)
                     startTime = startTime.AddDays(1);
                 return startTime;
             }

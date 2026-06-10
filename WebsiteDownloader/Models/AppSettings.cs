@@ -159,7 +159,7 @@ namespace WebsiteDownloader.Models
         /// <summary>
         /// Validates settings and fixes any invalid values with defaults.
         /// </summary>
-        private void ValidateAndFix()
+        internal void ValidateAndFix()
         {
             // Ensure UserAgent is not empty
             if (string.IsNullOrWhiteSpace(UserAgent))
