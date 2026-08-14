@@ -1,3 +1,5 @@
+
+
 # 🌐 Complete Website Downloader
 
 [![CodeFactor](https://www.codefactor.io/repository/github/badrshs/complete-website-downloader/badge)](https://www.codefactor.io/repository/github/badrshs/complete-website-downloader)
@@ -97,6 +99,14 @@
 ### Prerequisites
 - Visual Studio 2019 / 2022
 - .NET Framework 4.7.2 SDK
+
+### Build Steps
+1. Open `WebsiteDownloader.sln` in Visual Studio, or run from the command line:
+   ```powershell
+   nuget restore WebsiteDownloader.sln
+   msbuild WebsiteDownloader.sln /p:Configuration=Release
+   ```
+2. The compiled executable will be located at `WebsiteDownloader\bin\Release\WebsiteDownloader.exe`
 ---
 
 ## 🏗️ Project Structure
@@ -216,4 +226,3 @@ This project is open source and available under the [MIT License](LICENSE).
     web page saver, site downloader, httrack alternative
   </sub>
 </p>
- 
